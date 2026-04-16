@@ -1,0 +1,1 @@
+# stub powershellDetection.ts

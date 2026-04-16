@@ -1,0 +1,1 @@
+# stub permissionSync.ts

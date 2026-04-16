@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我读完了 OpenClaw 的 46 万行源码，发现了这些工程决策</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #d2a8ff;
+    --accent4: #ffa657;
+    --accent5: #ff7b72;
+    --accent6: #79c0ff;
+    --tag-bg: #1f2937;
+    --code-bg: #161b22;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    font-size: 16px;
+  }
+  /* Layout */
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+  }
+  .sidebar-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar nav a {
+    display: block;
+    padding: 5px 8px;
+    font-size: 13px;
+    color: var(--text2);
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+    line-height: 1.4;
+  }
+  .sidebar nav a:hover { background: var(--bg3); color: var(--text); }
+  .sidebar nav a.active { background: var(--bg3); color: var(--accent); }
+  .sidebar nav a.section { font-weight: 600; color: var(--text); margin-top: 8px; }
+  .main { flex: 1; max-width: 860px; padding: 60px 48px; }
+  /* Header */
+  .hero {
+    margin-bottom: 56px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    color: var(--accent3);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    letter-spacing: 0.04em;
+  }
+  .hero h1 {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #e6edf3 0%, #8b949e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-meta { display: flex; gap: 24px; flex-wrap: wrap; }
+  .hero-meta span { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+  .hero-meta span::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); display: inline-block; }
+  /* Sections */
+  section { margin-bottom: 64px; }
+  h2 {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  h3 { font-size: 18px; font-weight: 600; margin: 28px 0 14px; color: var(--accent6); }
+  h4 { font-size: 15px; font-weight: 600; margin: 20px 0 10px; color: var(--accent3); }
+  p { margin-bottom: 16px; color: #c9d1d9; }
+  /* Code */
+  pre {
+    margin: 20px 0;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  pre code.hljs { padding: 20px 24px; font-size: 13.5px; line-height: 1.65; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; }
+  code:not(pre code) {
+    background: var(--bg3);
+    color: var(--accent3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  /* Cards */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 20px 0;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+  /* Decision boxes */
+  .decision {
+    border-left: 3px solid var(--accent);
+    background: rgba(88, 166, 255, 0.05);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .decision-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 8px; }
+  .insight {
+    border-left: 3px solid var(--accent2);
+    background: rgba(63, 185, 80, 0.05);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .insight-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent2); margin-bottom: 8px; }
+  .warning {
+    border-left: 3px solid var(--accent4);
+    background: rgba(255, 166, 87, 0.05);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .warning-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent4); margin-bottom: 8px; }
+  /* Tables */
+  .table-wrap { overflow-x: auto; margin: 20px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    background: var(--bg3);
+    color: var(--text2);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: #c9d1d9; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  /* Lists */
+  ul, ol { padding-left: 24px; margin-bottom: 16px; }
+  li { margin-bottom: 8px; color: #c9d1d9; }
+  li strong { color: var(--text); }
+  /* Arch diagram */
+  .arch {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 24px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #8b949e;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .arch .layer { color: var(--accent6); font-weight: 600; }
+  .arch .arrow { color: var(--accent2); }
+  .arch .highlight { color: var(--accent4); }
+  /* Summary box */
+  .summary-box {
+    background: linear-gradient(135deg, rgba(88,166,255,0.08), rgba(63,185,80,0.08));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin: 40px 0;
+    text-align: center;
+  }
+  .summary-box p { font-size: 18px; font-weight: 500; color: var(--text); line-height: 1.6; margin: 0; }
+  /* Pattern list */
+  .pattern-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+  .pattern-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .pattern-item .p-num { font-size: 11px; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .pattern-item .p-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .pattern-item .p-desc { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { padding: 32px 20px; }
+    .hero h1 { font-size: 26px; }
+    .pattern-grid { grid-template-columns: 1fr; }
+  }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-title">目录</div>
+    <nav>
+      <a href="#overview" class="section">一、架构全景</a>
+      <a href="#channel">二、渠道层</a>
+      <a href="#acp">三、ACP 控制平面</a>
+      <a href="#runtime">四、Agent 运行时</a>
+      <a href="#memory">五、记忆体系</a>
+      <a href="#plugin">六、插件与 Hook</a>
+      <a href="#security">七、安全体系</a>
+      <a href="#cron">八、Cron 调度引擎</a>
+      <a href="#auth">九、多账号轮转</a>
+      <a href="#subagent">十、Sub-agent 持久化</a>
+      <a href="#patterns">十一、工程模式总结</a>
+      <a href="#philosophy">十二、工程哲学</a>
+    </nav>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+    <div class="hero">
+      <span class="hero-tag">源码深度解析</span>
+      <h1>我读完了 OpenClaw 的 46 万行源码，发现了这些工程决策</h1>
+      <div class="hero-meta">
+        <span>作者：干活验证虾 × Benjamin</span>
+        <span>日期：2026.04.06</span>
+        <span>源码版本：OpenClaw 2026.4.4（commit: 4954d02）</span>
+        <span>代码规模：约 460,000 行 TypeScript</span>
+      </div>
+    </div>
+
+    <!-- 一、架构全景 -->
+    <section id="overview">
+      <h2><span class="num">一</span>架构全景：它不是「多渠道聊天机器人」</h2>
+      <p>在读源码之前，我以为 OpenClaw 就是一个把 AI 对话桥接到多个聊天 app 的中间件。读完之后发现这个判断低估了它的工程规模。</p>
+      <p><strong>OpenClaw 的本质是一个常驻 daemon 进程，围绕 ACP（Agent Control Protocol）构建的多租户 AI Agent 基础设施。</strong>它需要管理的不只是消息路由，而是：多 session 并发隔离、ACP harness 连接池、认证轮转、向量记忆、定时调度、子 agent 生命周期、安全审计……</p>
+
+      <div class="arch">┌─────────────────────────────────────────────────────────────────────┐
+│                    <span class="layer">Channel Plugins（渠道层）</span>                         │
+│  Telegram │ WhatsApp │ Discord │ Slack │ Signal │ WeChat │ Feishu   │
+│  iMessage │ IRC │ Matrix │ Line │ ... <span class="highlight">21+ 渠道插件</span>                   │
+└───────────────────────┬─────────────────────────────────────────────┘
+                        │ inbound debounce + status reactions
+                        <span class="arrow">▼</span>
+┌─────────────────────────────────────────────────────────────────────┐
+│                    <span class="layer">Gateway / 调度控制面</span>                             │
+│  server.impl.ts → HTTP/WS 服务器 + plugin 管理                      │
+│  <span class="highlight">ACP manager.core（1997行）</span>                                         │
+│  ├─ SessionActorQueue    → 同 session 串行化                         │
+│  ├─ RuntimeCache         → 连接池 + 空闲驱逐                        │
+│  └─ activeTurnBySession  → 当前 turn 状态追踪                       │
+│  cron/timer.ts           → 定时调度（防雪崩）                        │
+│  heartbeat-runner.ts     → 心跳管理（transcript prune）             │
+└───────────────────────┬─────────────────────────────────────────────┘
+                        │ execute turn
+                        <span class="arrow">▼</span>
+┌─────────────────────────────────────────────────────────────────────┐
+│                    <span class="layer">Agent 运行时</span>                                   │
+│  <span class="highlight">pi-embedded-runner/attempt.ts（2098行）</span>                           │
+│  ├─ failover（attempt &lt; 2）                                          │
+│  ├─ eventGate（防超时污染）                                           │
+│  ├─ runLlmInput/Output hook                                         │
+│  └─ taskProgressSummary（background task 追踪）                      │
+│  auth-profiles/order.ts  → Round-Robin + Cooldown Partition         │
+│  subagent-registry.ts    → 3层持久化 + 孤儿恢复状态机               │
+└───────────────────────┬─────────────────────────────────────────────┘
+                        │ embed / recall / sandbox
+                        <span class="arrow">▼</span>
+┌─────────────────────────────────────────────────────────────────────┐
+│                    <span class="layer">基础设施层</span>                                     │
+│  memory-host-sdk    → <span class="highlight">LanceDB + 6种 Embedding Provider</span>             │
+│  context-engine     → 可插拔上下文引擎                               │
+│  security/audit.ts  → <span class="highlight">11类安全审计（3级 severity）</span>               │
+│  plugins/loader.ts  → Jiti 懒编译 + 安全扫描 + provenance 追踪      │
+│  plugins/hooks.ts   → <span class="highlight">28个强类型 HookRunner</span>                     │
+│  exec-approvals.ts  → 3级安全（deny/allowlist/full）                │
+└─────────────────────────────────────────────────────────────────────┘</div>
+
+      <p>这个架构的核心设计意图是：<strong>把 AI Agent 的基础设施问题（渠道适配、并发控制、资源管理、安全审计）彻底抽象出来，让 skill 和 plugin 开发者只关注业务逻辑。</strong></p>
+    </section>
+
+    <!-- 二、渠道层 -->
+    <section id="channel">
+      <h2><span class="num">二</span>渠道层：一个接口适配 21+ 渠道的设计哲学</h2>
+
+      <h3>2.1 ChannelPlugin：四大适配器接口</h3>
+      <p>每个渠道插件实现四个接口，其中两个是可选的。这个设计让渠道插件可以按能力「自报家门」：</p>
+
+      <pre><code class="language-typescript">interface ChannelPlugin {
+  id: ChatChannelId;                    // 动态字符串（非枚举！）
+  capabilities: ChannelCapabilities;   // 能力声明
+  messaging: ChannelMessagingAdapter;  // 消息发送（必须）
+  threading?: ChannelThreadingAdapter; // 线程管理（可选）
+  security?: ChannelSecurityAdapter;   // 安全策略（可选）
+}</code></pre>
+
+      <div class="decision">
+        <div class="decision-label">工程决策</div>
+        <p><strong>id 是动态字符串而不是枚举。</strong>原因是 OpenClaw 支持第三方渠道插件——如果用枚举，每新增一个渠道都需要修改核心类型定义；用字符串，插件只需注册自己的 id，核心代码不需要改。这是「开放-封闭原则」在渠道设计上的体现。</p>
+      </div>
+
+      <p><code>ChannelCapabilities</code> 是渠道能力的完整声明清单：</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>能力字段</th><th>说明</th><th>支持示例</th></tr></thead>
+          <tbody>
+            <tr><td><code>canReact</code></td><td>emoji 反应</td><td>Discord / Slack / Telegram</td></tr>
+            <tr><td><code>hasNativeThreading</code></td><td>原生线程/话题</td><td>Discord / Slack</td></tr>
+            <tr><td><code>supportsStreamingMessages</code></td><td>流式输出（实时更新消息）</td><td>Discord / Telegram</td></tr>
+            <tr><td><code>inlineButtons</code></td><td>内嵌按钮（dm/group/all/allowlist）</td><td>Telegram / Discord</td></tr>
+            <tr><td><code>canSendEphemeral</code></td><td>临时消息（只有发送者可见）</td><td>Slack</td></tr>
+            <tr><td><code>canSendPolls</code></td><td>投票消息</td><td>Telegram / Discord</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>2.2 StatusReactionController：状态 emoji 的工程精度</h3>
+      <p>每次 AI 处理消息时，渠道上会有一个 emoji 实时反映当前状态。这个看似简单的功能背后有精确的工程设计：</p>
+
+      <pre><code class="language-typescript">// 状态机：queued → thinking → [tool 执行] → done/error
+//                         ↘ coding/web（专用状态）
+//                         ↘ stallSoft(10s) → stallHard(30s)
+//                         ↘ compacting（压缩进行中）
+
+// 中间状态 debounce 700ms —— 避免 thinking→tool→done 快速切换
+scheduleEmoji(emoji, 700ms delay)
+
+// 终止状态立即执行，不等 debounce
+if (isFinalState) executeImmediately()</code></pre>
+
+      <div class="insight">
+        <div class="insight-label">工程洞察</div>
+        <p><strong>700ms debounce 不是随意选的。</strong>它比人眼感知阈值（约 100-200ms）大得多，目的不是「平滑 UI」，而是「减少 API 调用次数」。如果 thinking → tool 在 500ms 内完成，用户只会看到一个 emoji 变化，而不是两个。但 stallSoft（10s 无输出触发卡住检测）需要 Immediate 执行——用户需要知道 AI 可能卡住了。</p>
+      </div>
+
+      <h3>2.3 DraftStreamLoop：流式 typing 效果的设计</h3>
+      <p>AI 回复时，消息会实时更新（类似「正在输入」效果）。这个功能的并发控制很有讲究：</p>
+
+      <pre><code class="language-typescript">// 核心：不用队列，用覆盖
+pendingText = text  // 永远是最新内容
+
+// inFlightPromise：同一时刻只有一个 sendOrEditStreamMessage 在飞
+// throttleMs：控制更新频率（避免触发渠道 API 频率限制）
+
+update(text) → 更新 pendingText
+  ├─ 有 inFlight → schedule（等 throttleMs）
+  ├─ 超过 throttleMs → 立即 flush
+  └─ 否则 → schedule
+
+flush() → 发送 pendingText（不是队列里的历史消息）</code></pre>
+
+      <div class="decision">
+        <div class="decision-label">工程决策</div>
+        <p><strong>覆盖而非队列。</strong>流式输出的语义是「展示最新进度」，不是「保证每个中间状态都展示出来」。用队列会导致发送积压——用户看到的是「上上上个版本的内容」，而且越积越多。用覆盖，保证用户永远看到最新内容，同时 throttleMs 控制 API 调用频率。</p>
+      </div>
+
+      <h3>2.4 inbound-debounce：防止连续输入触发多次</h3>
+      <p>当用户快速发送多条消息时，防止每条都触发一次完整的 AI 对话：</p>
+      <ul>
+        <li>有 media 附件 → <strong>不 debounce</strong>（立即处理，避免附件内存积压）</li>
+        <li>是控制命令（<code>/help</code>、<code>/status</code> 等）→ <strong>不 debounce</strong>（命令需要即时响应）</li>
+        <li>普通文本 → 防抖（合并短时间内的多条消息）</li>
+        <li><code>maxTrackedKeys = 2048</code>：防止 DDoS 场景下 Map 无限增长</li>
+      </ul>
+    </section>
+
+    <!-- 三、ACP 控制平面 -->
+    <section id="acp">
+      <h2><span class="num">三</span>ACP 控制平面：1997 行的并发管理核心</h2>
+      <p>OpenClaw 的 ACP manager（<code>manager.core.ts</code>，1997 行）是整个系统最复杂的模块。它管理着与 ACP harness（Claude Code、Codex、Cursor 等）的所有连接，以及多 session 的并发隔离。</p>
+
+      <h3>3.1 SessionActorQueue：同 session 严格串行</h3>
+
+      <pre><code class="language-typescript">class SessionActorQueue {
+  // 核心原语：同一 actorKey 的操作严格串行
+  async run<T>(actorKey: string, op: () => Promise<T>): Promise<T>
+
+  // 可监控字段（可接入 Prometheus 等）
+  getPendingCountForSession(key: string): number  // 单 session 等待深度
+  getTotalPendingCount(): number                   // 全局等待总数
+}
+
+// 使用方式
+withSessionActor(sessionKey, async () => {
+  // 新 turn 必须等上一个 turn 完成
+  // 不允许同一 session 并发执行两个 turn
+})</code></pre>
+
+      <div class="insight">
+        <div class="insight-label">为什么需要串行化？</div>
+        <p>AI 对话是有状态的——第二条消息的上下文依赖第一条消息的完整处理结果。如果两个 turn 并发执行，状态会混乱（类似数据库的并发写入问题）。SessionActorQueue 是这个场景下最简单有效的解法：每个 session 一把锁，不同 session 互不干扰。</p>
+      </div>
+
+      <h3>3.2 RuntimeCache：连接池 + LRU 驱逐</h3>
+      <p>维护与 ACP harness 的长连接，用 LRU 策略驱逐空闲连接：</p>
+
+      <pre><code class="language-typescript">class RuntimeCache {
+  // touch=true → 更新 lastTouchedAt（LRU 计数）
+  // touch=false（peek）→ 不更新，用于只读检查
+  get(actorKey, { touch?: boolean })
+  
+  // 收集空闲超过 maxIdleMs 的候选（不立即驱逐）
+  collectIdleCandidates({ maxIdleMs })
+  
+  // 点快照（含 idleMs）→ 接入 observability
+  snapshot()
+}
+
+// 关键字段
+interface CachedRuntimeState {
+  runtime: AcpRuntime;
+  handle: AcpRuntimeHandle;
+  appliedControlSignature?: string;  // undefined → 下次 turn 强制重推 controls
+}</code></pre>
+
+      <div class="decision">
+        <div class="decision-label">工程决策</div>
+        <p><strong><code>appliedControlSignature</code> 的作用。</strong>当 controls（系统提示、工具列表等配置）发生变化时，不是立即断开重连，而是把 signature 标记为 undefined，等下次 turn 开始时「顺带」重推 controls。这避免了配置更改导致的连接抖动——不需要建新连接，只需要在现有连接上发送更新的配置。</p>
+      </div>
+
+      <h3>3.3 超时清理的双阶段设计</h3>
+
+      <pre><code class="language-typescript">// 超时发生后：
+// 阶段1：发中断信号，给 runtime 宽限期自行清理
+abortController.abort()
+runtime.cancel()
+await awaitCleanupWithGrace(GRACE_MS)
+// 超时 → 异步继续等（不阻塞），记录日志
+
+// 仅 oneshot 模式：
+// 阶段2：强制关闭连接
+runtime.close()
+await awaitCleanupWithGrace(GRACE_MS)
+// 两阶段都成功 → 同步清除缓存
+// 任一失败 → Promise.allSettled 后异步清除（不丢弃！）</code></pre>
+
+      <div class="insight">
+        <div class="insight-label">工程洞察</div>
+        <p><strong>两阶段超时清理防止资源泄漏。</strong>单阶段 abort 可能无法优雅停止正在运行的工具（比如一个长时间的 bash 命令）。两阶段设计给 runtime 机会自行完成清理，只有宽限期结束后才强制关闭。<code>Promise.allSettled</code> 而不是 <code>Promise.all</code>，确保即使某一步失败，清除操作也一定会执行。</p>
+      </div>
+
+      <h3>3.4 ACP approval-classifier 反注入设计</h3>
+      <p>当工具调用需要权限审批时，OpenClaw 从三个来源提取工具名：</p>
+
+      <pre><code class="language-typescript">// 三源一致性检查
+const source1 = _meta.toolName        // 来自 ACP 元数据
+const source2 = rawInput.tool         // 来自工具调用参数
+const source3 = title.split(':')[0]   // 来自显示标题
+
+// 任何两源有值但不一致 → undefined（拒绝）
+// 防止 title 被篡改来绕过权限检查
+if (source1 && source2 && source1 !== source2) return undefined</code></pre>
+
+      <div class="decision">
+        <div class="decision-label">工程决策</div>
+        <p><strong>三源一致性是反注入的关键。</strong>如果只从 title 提取工具名，攻击者可以构造 <code>bash: [actually safe tool name]</code> 来伪装 bash 命令为安全工具。通过比对三个来源，任何不一致都会被识别为潜在的注入尝试，返回 undefined 触发权限拒绝。</p>
+      </div>
+    </section>
+
+    <!-- 四、Agent 运行时 -->
+    <section id="runtime">
+      <h2><span class="num">四</span>Agent 运行时：2098 行的对话循环</h2>
+
+      <h3>4.1 eventGate：防超时污染的优雅方案</h3>
+      <p>这是我在 OpenClaw 源码里看到的最优雅的设计之一：</p>
+
+      <pre><code class="language-typescript">const eventGate = { open: true }
+
+// turn 超时后：关闭 gate
+// ⚠️ 不停止 stream（停止 stream 可能导致 runtime 状态不一致）
+eventGate.open = false
+
+// 事件仍从 stream 流出，但被 gate 过滤
+for await (const event of pi.runTurn()) {
+  if (!eventGate.open) continue  // 超时后的事件全部忽略
+  
+  // 正常处理
+  handleEvent(event)
+}</code></pre>
+
+      <div class="insight">
+        <div class="insight-label">为什么不直接 break？</div>
+        <p>如果 turn 超时后直接 break 退出循环，stream 还在运行中，后续的事件（可能包含工具结果、状态更新等）会「污染」下一个 turn 的事件流。eventGate 的做法是：让 stream 自然结束，但用 gate 过滤掉超时后的所有事件。这比 abort + catch 更优雅，也避免了强制中断可能带来的资源清理问题。</p>
+      </div>
+
+      <h3>4.2 failover：两次机会，不是无限重试</h3>
+
+      <pre><code class="language-typescript">// attempt < 2：最多两次机会
+// 触发条件（三者同时满足）：
+// 1. attempt === 0（首次尝试）
+// 2. sawTurnOutput === false（没有任何输出）
+// 3. isRecoverableAcpxExitError()：匹配 "acpx exited with code/signal"
+
+if (shouldRetry) {
+  retryFreshHandle = true  // 换新的 handle（重新建连，不复用旧连接）
+  continue
+}
+// 第二次失败 → 直接抛出，不再重试</code></pre>
+
+      <div class="decision">
+        <div class="decision-label">工程决策</div>
+        <p><strong>「两次机会」而不是指数退避。</strong>AI Agent 的对话是有时间敏感性的——用户在等。如果 failover 像 HTTP 请求一样做指数退避（几秒、几十秒……），用户体验会很差。两次机会是一个明确的上限：一次是正常情况，一次是临时故障恢复，超过两次基本说明是系统性问题，需要人工介入，不应该继续自动重试。</p>
+      </div>
+
+      <h3>4.3 taskProgressSummary：后台任务的实时追踪</h3>
+      <p>对于 background task 模式（<code>mode === 'prompt'</code>），每个 <code>text_delta</code> 都追加到 <code>progressSummary</code>，turn 结束时通过 <code>resolveBackgroundTaskTerminalResult()</code> 提取结构化的 terminalOutcome。这让后台任务的执行过程完全可观测，不是「发出去等结果」的黑箱。</p>
+    </section>
+
+    <!-- 五、记忆体系 -->
+    <section id="memory">
+      <h2><span class="num">五</span>记忆体系：向量数据库 + QMD 语义索引</h2>
+      <p>OpenClaw 选择了 <strong>LanceDB + 向量嵌入</strong>来实现跨 session 的记忆，而不是 Claude Code 的 Markdown 文件方案。这是两个框架最大的架构差异之一。</p>
+
+      <h3>5.1 六种 Embedding Provider</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Provider</th><th>特点</th><th>适用场景</th></tr></thead>
+          <tbody>
+            <tr><td><code>openai</code></td><td>text-embedding-3-small/large</td><td>通用，质量高</td></tr>
+            <tr><td><code>gemini</code></td><td>支持 taskType + outputDimensionality（768/1536/3072）</td><td>任务感知检索</td></tr>
+            <tr><td><code>voyage</code></td><td>voyage-3-large，有代码/法律专用模型</td><td>垂直领域</td></tr>
+            <tr><td><code>mistral</code></td><td>mistral-embed</td><td>欧洲数据合规</td></tr>
+            <tr><td><code>ollama</code></td><td>本地 Ollama 服务</td><td>完全本地，不上传数据</td></tr>
+            <tr><td><code>local</code></td><td>node-llama-cpp GGUF，默认 embeddinggemma-300m（~300MB）</td><td>离线，无需配置</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>5.2 auto 选择的负向约束</h3>
+
+      <pre><code class="language-typescript">// auto 模式：REMOTE_EMBEDDING_PROVIDER_IDS
+const REMOTE = ["openai", "gemini", "voyage", "mistral"]
+// 注意：Ollama 故意不在这个列表里
+// 原因：不能假设用户有 Ollama（部署在服务器上可能根本没有）
+
+// canAutoSelectLocal() 的判断逻辑
+function canAutoSelectLocal(modelPath: string): boolean {
+  if (!modelPath) return false
+  if (modelPath.startsWith('hf:')) return false     // HuggingFace 需要下载
+  if (modelPath.startsWith('http:')) return false   // 远程 URL
+  return fs.existsSync(modelPath)  // 只有文件实际存在才可 auto 选择
+}</code></pre>
+
+      <div class="decision">
+        <div class="decision-label">工程决策</div>
+        <p><strong>负向约束（exclusion list）比正向约束（inclusion list）更安全。</strong>auto 选择的原则是「只选我确定存在的资源」，而不是「选我觉得可能有的资源」。这个原则防止了「用户配置了 Ollama 但没有启动，auto 选到 Ollama 然后失败」的场景——在生产环境中，这种「悄悄失败」是最难调试的问题。</p>
+      </div>
+
+      <h3>5.3 Gemini 向量的特殊能力</h3>
+      <p>Gemini 的 embedding API 比 OpenAI 多了两个维度：</p>
+      <ul>
+        <li><strong>outputDimensionality</strong>：可选 768 / 1536 / 3072 维——维度越高，语义区分能力越强，但存储和检索成本也越高</li>
+        <li><strong>taskType</strong>：RETRIEVAL_DOCUMENT / RETRIEVAL_QUERY / CLASSIFICATION 等——告诉模型「这个向量用来做什么」，让模型在生成 embedding 时考虑下游任务的需求</li>
+      </ul>
+      <p>这个「任务感知」特性意味着同一段文本，用于「被检索」和用于「检索别人」会生成不同的 embedding，检索精度理论上比通用 embedding 更高。</p>
+    </section>
+
+    <!-- 六、插件与 Hook -->
+    <section id="plugin">
+      <h2><span class="num">六</span>插件与 Hook 体系：28 个强类型切面</h2>
+
+      <h3>6.1 插件加载器：三重安全保障</h3>
+
+      <pre><code class="language-typescript">// 1. Jiti 懒初始化：只有需要加载 TS 插件时才初始化
+//    → 不增加 gateway 冷启动时间和内存
+let jiti: ReturnType<typeof createJiti> | undefined
+
+function getJiti() {
+  if (!jiti) jiti = createJiti(...)
+  return jiti
+}
+
+// 2. activate=false 必须 cache=false
+//    防止将「命令从未注册」的残缺 registry 存入缓存
+if (!activate && cache) throw new Error(...)
+
+// 3. provenance 追踪（4源）
+type PluginProvenance = 'bundled' | 'installed' | 'workspace' | 'global'
+// 无 provenance 的已加载插件 → 发出警告（可能是直接 require，绕过了安装流程）</code></pre>
+
+      <h3>6.2 安装安全扫描</h3>
+      <p>安装 skill 时，OpenClaw 会对代码进行安全扫描：</p>
+      <ul>
+        <li><strong>critical findings → 阻断安装</strong>（<code>security_scan_blocked</code>）</li>
+        <li><strong>warn findings → 告警不阻断</strong>（展示给用户决策）</li>
+        <li><strong>scan failure → 阻断安装</strong>（<code>security_scan_failed</code>，扫描工具本身出错也不允许跳过）</li>
+      </ul>
+
+      <div class="decision">
+        <div class="decision-label">工程决策</div>
+        <p><strong>scan failure 阻断，而不是跳过。</strong>如果扫描工具报错了就允许安装，等于「关掉报警继续施工」。阻断的代价是用户需要调查为什么扫描失败，但这比允许未经检验的代码运行要安全得多。</p>
+      </div>
+
+      <h3>6.3 28 个 HookRunner：完整的 AI 生命周期切面</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>阶段</th><th>Hook 数量</th><th>关键 Hook</th></tr></thead>
+          <tbody>
+            <tr><td>Agent 生命周期</td><td>10</td><td>runLlmInput, runLlmOutput, runBeforePromptBuild</td></tr>
+            <tr><td>消息生命周期</td><td>5</td><td>runMessageSending, runInboundClaim, runBeforeDispatch</td></tr>
+            <tr><td>工具生命周期</td><td>4</td><td>runBeforeToolCall, runAfterToolCall</td></tr>
+            <tr><td>Sub-agent 生命周期</td><td>4</td><td>runSubagentSpawning, runSubagentEnded</td></tr>
+            <tr><td>系统</td><td>5</td><td>runGatewayStart, runBeforeInstall</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>与 Claude Code 的 hook 体系对比：</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>维度</th><th>Claude Code Hooks</th><th>OpenClaw HookRunner</th></tr></thead>
+          <tbody>
+            <tr><td>数量</td><td>27 种事件名</td><td>28 个函数</td></tr>
+            <tr><td>类型系统</td><td>Shell 脚本协议（JSON stdout）</td><td>TypeScript 强类型</td></tr>
+            <tr><td>扩展方式</td><td>外部进程（command/agent/http）</td><td>Plugin SDK 内部注册</td></tr>
+            <tr><td>拦截能力</td><td>exit 2 阻断</td><td>函数返回修改后的对象</td></tr>
+            <tr><td>语义</td><td>通过/拒绝</td><td>变换（transform）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="insight">
+        <div class="insight-label">工程洞察</div>
+        <p><strong>「变换语义」比「通过/拒绝语义」更表达力强。</strong>Claude Code 的 hook exit 2 只能说「不行」；OpenClaw 的 hook 返回修改后的对象，可以说「可以，但把参数改成这样」。这让 hook 可以实现「参数注入」、「内容过滤」、「格式转换」等更复杂的业务逻辑，而 Claude Code 的 hook 只能做门控。</p>
+      </div>
+    </section>
+
+    <!-- 七、安全体系 -->
+    <section id="security">
+      <h2><span class="num">七</span>安全体系：11 类审计 + 动态加载</h2>
+
+      <h3>7.1 11 类安全审计</h3>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>类别</th><th>代表检查项</th><th>Severity</th></tr></thead>
+          <tbody>
+            <tr><td>Filesystem</td><td>关键目录 owner/mode</td><td>warn/critical</td></tr>
+            <tr><td>Gateway Config</td><td>监听地址、allowFrom 白名单、trusted proxy</td><td>critical</td></tr>
+            <tr><td>Dangerous Flags</td><td>高风险配置字段（insecure/dangerous 标记）</td><td>critical</td></tr>
+            <tr><td>Browser Control</td><td>浏览器控制端点暴露范围</td><td>warn/critical</td></tr>
+            <tr><td>Logging</td><td>日志级别、敏感数据脱敏</td><td>info/warn</td></tr>
+            <tr><td>Elevated</td><td>bypassPermissions 使用范围</td><td>warn/critical</td></tr>
+            <tr><td>Exec Runtime</td><td>沙箱模式（off/docker/ssh）</td><td>warn</td></tr>
+            <tr><td>Risky Safe-Bins</td><td>白名单可执行文件风险评估</td><td>warn</td></tr>
+            <tr><td>Open Exec Surface</td><td>暴露的执行路径数量</td><td>warn</td></tr>
+            <tr><td>SSRF</td><td>私有网段 + IPv4-mapped IPv6 解包</td><td>critical</td></tr>
+            <tr><td>Channel</td><td>各渠道特定安全设置</td><td>varies</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>7.2 动态加载：安全模块不影响启动</h3>
+
+      <pre><code class="language-typescript">// 深度检查和渠道检查都是运行时动态 import
+// 好处：不增加 gateway 冷启动的内存和时间
+// 只有用户执行 /status 或安全审计时才加载
+
+const { runDeepAudit } = await import('./audit.deep.runtime.js')
+const { collectChannelFindings } = await import('./audit-channel.collect.runtime.js')</code></pre>
+
+      <h3>7.3 exec-approvals：三级安全 × 三级询问</h3>
+
+      <pre><code class="language-typescript">// ExecSecurity（安全策略）
+type ExecSecurity = 'deny' | 'allowlist' | 'full'
+
+// ExecAsk（询问策略）  
+type ExecAsk = 'off' | 'on-miss' | 'always'
+
+// ExecApprovalDecision：每个 approval request 可限制哪些 decision 可用
+// 防止用户对危险命令选择 allow-always
+
+// DEFAULT_EXEC_APPROVAL_TIMEOUT_MS = 1,800,000（30分钟）
+// 用户有充分的时间查看和决定</code></pre>
+
+      <div class="decision">
+        <div class="decision-label">工程决策</div>
+        <p><strong><code>normalizeExecApprovals</code> 三步防腐。</strong>allowlist 数据在持久化时可能因为用户手动编辑、版本迁移等原因损坏。三步处理：① coerceAllowlistEntries（兼容旧格式）→ ② ensureAllowlistIds（补 UUID）→ ③ stripAllowlistCommandText（持久化时移除明文命令，只保留 pattern）。这三步的顺序不能颠倒，且每步都是幂等的。</p>
+      </div>
+    </section>
+
+    <!-- 八、Cron 调度引擎 -->
+    <section id="cron">
+      <h2><span class="num">八</span>Cron 调度引擎：防雪崩的设计哲学</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>常量</th><th>值</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td><code>MAX_TIMER_DELAY_MS</code></td><td>60,000 ms</td><td>setInterval 最大间隔（防止睡过头）</td></tr>
+            <tr><td><code>MIN_REFIRE_GAP_MS</code></td><td>2,000 ms</td><td>同一 job 最小重触发间隔（防 spin-loop）</td></tr>
+            <tr><td><code>DEFAULT_MISSED_JOB_STAGGER_MS</code></td><td>5,000 ms</td><td>错过 job 的错峰延迟</td></tr>
+            <tr><td><code>DEFAULT_MAX_MISSED_JOBS_PER_RESTART</code></td><td>5</td><td>重启后最多补跑数量</td></tr>
+            <tr><td><code>DEFAULT_FAILURE_ALERT_AFTER</code></td><td>2</td><td>连续失败次数告警阈值</td></tr>
+            <tr><td><code>DEFAULT_FAILURE_ALERT_COOLDOWN_MS</code></td><td>3,600,000 ms</td><td>告警冷却期（1小时）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>startup catchup 防雪崩</h3>
+
+      <pre><code class="language-typescript">// 场景：gateway 宕机 2 小时，重启后有 50 个 cron job 错过了
+// 不加保护：50 个 job 同时执行，瞬间打满 API 配额
+
+// OpenClaw 的做法：有上界 + 错峰
+const missedJobs = findMissedJobs(since: lastRestartTime)
+const toRun = missedJobs.slice(0, MAX_MISSED_JOBS_PER_RESTART)  // 最多 5 个
+
+for (const [i, job] of toRun.entries()) {
+  await sleep(i * DEFAULT_MISSED_JOB_STAGGER_MS)  // 每个延迟 5s
+  executeJob(job)
+}
+// 结果：最多 5 个，25s 内全部完成，不会并发爆发</code></pre>
+
+      <div class="insight">
+        <div class="insight-label">工程洞察</div>
+        <p><strong>「有上界的补跑」是关键设计。</strong>如果系统宕机时间很长，补跑所有错过的 job 可能会造成比宕机本身更大的影响（雪崩效应）。OpenClaw 选择了「最多补 5 个，多的直接跳过」，这是一个明确的业务权衡：宁愿丢弃一些历史 job，也不能在重启时再次造成系统过载。</p>
+      </div>
+
+      <h3>超时控制的 Promise.race 模式</h3>
+
+      <pre><code class="language-typescript">await Promise.race([
+  executeJobCore(state, job, runAbortController.signal),
+  new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      runAbortController.abort(timeoutErrorMessage())  // 通知 job 停止
+      reject(new Error(timeoutErrorMessage()))          // 触发 race
+    }, jobTimeoutMs)
+  })
+])
+// finally: clearTimeout(timeoutId)  ← 防定时器泄漏（不管成功还是失败都清理）</code></pre>
+    </section>
+
+    <!-- 九、多账号轮转 -->
+    <section id="auth">
+      <h2><span class="num">九</span>多账号轮转：真正的 Round-Robin</h2>
+
+      <h3>排序算法的精妙之处</h3>
+      <pre><code class="language-typescript">// 排序优先级（降序）：
+// 1. preferredProfile → 用户显式指定，始终第一
+// 2. 无 cooldown 的 profile：
+//    按类型：oauth > token > api_key
+//    按 lastUsed：最旧的先用（！这是关键）
+// 3. 有 cooldown 的 profile：按到期时间升序
+
+// 关键注释（原文保留）：
+// lastGood is NOT prioritized - that would defeat round-robin
+// round-robin 的意义是均匀分摊负载
+// 不是「总用上次成功的」——那叫「总用同一个」</code></pre>
+
+      <div class="decision">
+        <div class="decision-label">工程决策</div>
+        <p><strong>lastGood 不参与排序</strong>是很多工程师容易犯的直觉错误：「上次成功的就是最好的，应该优先用」。但在负载均衡场景下，这等于「把所有流量打到一个 endpoint」。OpenClaw 选择的是真正的 round-robin：不管上次谁成功，这次用「最久没用过的」，确保所有 profile 的使用量趋向均衡。</p>
+      </div>
+
+      <h3>配置漂移自动修复</h3>
+      <p>当用户迁移账号，旧 profileId 消失但 credentials 还在时：</p>
+
+      <pre><code class="language-typescript">// 检测：baseOrder 里的 profileId 都不在 store 中
+const allBaseProfilesMissing = baseOrder.every(
+  id => !store.getProfile(id)
+)
+
+if (allBaseProfilesMissing) {
+  // 修复：扫描 store 里该 provider 的所有 profile 作为 fallback
+  const storeProfiles = store.getProfilesByProvider(provider)
+  return sortProfiles(storeProfiles)  // 至少能用上
+}</code></pre>
+
+      <div class="insight">
+        <div class="insight-label">工程洞察</div>
+        <p><strong>配置漂移是生产环境中最常见的「安静失败」来源。</strong>如果不做这个修复，用户账号迁移后 OpenClaw 会静默使用错误的 profile 或者报错，而用户不知道为什么。自动修复虽然不是「正确答案」，但比「静默失败」好得多——至少系统还在工作。</p>
+      </div>
+    </section>
+
+    <!-- 十、Sub-agent 持久化 -->
+    <section id="subagent">
+      <h2><span class="num">十</span>Sub-agent 持久化：孤儿恢复状态机</h2>
+
+      <h3>三层持久化设计</h3>
+
+      <pre><code class="language-typescript">// 三层存储，从快到慢：
+// in-memory Map → persistSubagentRunsToDisk (JSON) → orphan-recovery (重启后)
+
+// 孤儿恢复决策树（重启后扫描所有 sub-agent runs）：
+if (cleanupCompletedAt) return 'skip'  // 已清理
+
+if (announceRetryCount >= MAX_RETRY)
+  return finalizeResumedAnnounceGiveUp('retry-limit')  // 重试次数耗尽
+
+if (timeSince(endedAt) > ANNOUNCE_EXPIRY_MS)
+  return finalizeResumedAnnounceGiveUp('expiry')  // 太老了，不再通知
+
+if (suppressAnnounceForSteerRestart)
+  return 'skip'  // 被 steer 中断的，等 steer 替换，不通知
+
+if (endedAt > 0)
+  return startSubagentAnnounceCleanupFlow()  // 已结束，发通知
+
+return waitForSubagentCompletion(runId, waitTimeoutMs)  // 还在运行</code></pre>
+
+      <div class="decision">
+        <div class="decision-label">工程决策</div>
+        <p><strong><code>suppressAnnounceForSteerRestart</code> 防止双重通知。</strong>当用户通过 <code>steer</code> 命令替换正在运行的 sub-agent 时，旧的 run 被中断，新的 run 会接管。如果旧 run 在重启后还发通知，用户会收到「你刚刚取消的任务」的通知，体验很差。这个 flag 记录了「这个 run 是被主动中断的」，重启后跳过通知。</p>
+      </div>
+
+      <h3>动态 import：懒加载孤儿恢复</h3>
+
+      <pre><code class="language-typescript">// 孤儿恢复模块通过动态 import 延迟加载
+// 效果：不影响 gateway 冷启动时间和内存
+
+void import('./subagent-orphan-recovery.js')
+  .then(({ scheduleOrphanRecovery }) => {
+    scheduleOrphanRecovery(...)
+  })
+  .catch(() => {
+    // best-effort：失败了也不影响正常运行
+    // 只是这次重启不做孤儿恢复
+  })</code></pre>
+
+      <h3>sweeper 节能</h3>
+      <p>归档 sweeper 不会空转：</p>
+      <ul>
+        <li>只有当存在有 <code>archiveAtMs</code> 的 run 时才启动 sweeper</li>
+        <li>最后一个需要归档的 run 清除后，自动 <code>stopSweeper()</code></li>
+        <li>不保留空转的定时器——Node.js 进程不会因为 sweeper 无法退出</li>
+      </ul>
+    </section>
+
+    <!-- 十一、工程模式总结 -->
+    <section id="patterns">
+      <h2><span class="num">十一</span>工程模式总结</h2>
+
+      <h3>可直接借鉴的工程模式</h3>
+      <div class="pattern-grid">
+        <div class="pattern-item">
+          <div class="p-num">Pattern 1</div>
+          <div class="p-title">eventGate 防超时污染</div>
+          <div class="p-desc">turn 超时后关闭 gate，让 stream 自然结束但过滤所有事件。比 abort+catch 更优雅，避免强制中断的副作用。</div>
+        </div>
+        <div class="pattern-item">
+          <div class="p-num">Pattern 2</div>
+          <div class="p-title">三源一致性反注入</div>
+          <div class="p-desc">从多个来源提取关键字段，任意两源不一致则拒绝。防止通过一个来源伪造信息绕过权限检查。</div>
+        </div>
+        <div class="pattern-item">
+          <div class="p-num">Pattern 3</div>
+          <div class="p-title">有上界的补跑</div>
+          <div class="p-desc">重启后最多补跑 N 个错过的 cron job，超过的直接跳过。防止补跑导致的雪崩效应，是资源管理的重要约束。</div>
+        </div>
+        <div class="pattern-item">
+          <div class="p-num">Pattern 4</div>
+          <div class="p-title">负向约束的 auto 选择</div>
+          <div class="p-desc">auto 选择模式主动排除「不确定存在」的资源（Ollama、hf: 路径）。只选「确定存在」的，而不是「可能有的」。</div>
+        </div>
+        <div class="pattern-item">
+          <div class="p-num">Pattern 5</div>
+          <div class="p-title">pending 覆盖而非队列</div>
+          <div class="p-desc">流式更新用覆盖而非队列，配合 throttleMs 控制频率。永远发最新内容，避免历史积压。</div>
+        </div>
+        <div class="pattern-item">
+          <div class="p-num">Pattern 6</div>
+          <div class="p-title">动态 import 懒加载</div>
+          <div class="p-desc">安全审计模块、孤儿恢复模块通过动态 import 延迟加载，不影响 gateway 冷启动。best-effort 失败静默处理。</div>
+        </div>
+        <div class="pattern-item">
+          <div class="p-num">Pattern 7</div>
+          <div class="p-title">防腐三步</div>
+          <div class="p-desc">持久化数据读取时：coerce（兼容旧格式）→ ensureIds（补缺失字段）→ strip（去除不应持久化的内容）。每步幂等，顺序不可颠倒。</div>
+        </div>
+        <div class="pattern-item">
+          <div class="p-num">Pattern 8</div>
+          <div class="p-title">变换语义 Hook</div>
+          <div class="p-desc">Hook 函数返回修改后的对象，而不是 exit code。支持「参数注入」、「内容过滤」等复杂变换，比门控语义（通过/拒绝）更灵活。</div>
+        </div>
+      </div>
+
+      <h3>值得警惕的反模式</h3>
+      <div class="warning">
+        <div class="warning-label">反模式</div>
+        <ul>
+          <li><strong>scan failure 跳过</strong>：安全扫描工具报错就继续安装，等于「关报警继续施工」</li>
+          <li><strong>lastGood 优先排序</strong>：在负载均衡场景下，「总用上次成功的」= 把所有流量打到一个 endpoint</li>
+          <li><strong>补跑不设上界</strong>：重启后无限补跑历史 job，可能比宕机本身造成更大破坏</li>
+          <li><strong>auto 选择假设资源存在</strong>：Ollama 可能没启动，HuggingFace 模型可能没下载，不能假设</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 十二、工程哲学 -->
+    <section id="philosophy">
+      <h2><span class="num">十二</span>工程哲学：三个关键词</h2>
+
+      <h3>可观测性优先</h3>
+      <p>OpenClaw 在多个地方内置了观测点：<code>SessionActorQueue</code> 暴露 <code>getPendingCountForSession()</code> 供监控系统接入；<code>RuntimeCache.snapshot()</code> 返回含 <code>idleMs</code> 的快照；ACP manager 内置 <code>turnLatencyStats</code> 和 <code>errorCountsByCode</code>。这些不是事后加的，而是从设计之初就内置的。</p>
+
+      <h3>资源有界</h3>
+      <p>几乎每个可能无限增长的资源都有明确的上界：<code>maxTrackedKeys = 2048</code>（防抖 Map）、<code>MAX_MISSED_JOBS_PER_RESTART = 5</code>（补跑上限）、<code>maxConcurrentRuns</code>（cron 并发）、<code>announceRetryCount >= MAX_RETRY</code>（孤儿恢复重试上限）。这不是「过度防御」，而是「在最坏情况下系统仍然可预测」。</p>
+
+      <h3>最小惊讶原则</h3>
+      <p>系统行为应该符合用户预期。<code>suppressAnnounceForSteerRestart</code> 防止收到「你刚才取消的任务」的通知；<code>normalizeExecApprovals</code> 在读取时自动修复损坏数据，而不是报错；<code>allBaseProfilesMissing</code> 自动 fallback 而不是静默失败。这些设计的共同点是：用户的操作应该产生用户期望的结果，而不是让用户惊讶。</p>
+
+      <div class="summary-box">
+        <p>把并发问题变成串行问题；把资源问题变成有界问题；把观测问题变成设计问题。<br>不要让系统做用户没有预期的事，也不要让系统在用户不知情的情况下失败。</p>
+      </div>
+    </section>
+
+    <div style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text2); font-size: 13px; line-height: 1.8;">
+      <p>本文基于 OpenClaw 2026.4.4（commit: 4954d02）源码分析。所有分析结果归档于 <code>/root/.openclaw/workspace/openclaw-source-full-report-v2.md</code>。</p>
+      <p>作者：干活验证虾 × Benjamin | 2026.04.06</p>
+    </div>
+  </main>
+</div>
+
+<script>
+// Sidebar active state on scroll
+const sections = document.querySelectorAll('section[id]')
+const navLinks = document.querySelectorAll('.sidebar nav a')
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(link => {
+        link.classList.remove('active')
+        if (link.getAttribute('href') === '#' + entry.target.id) {
+          link.classList.add('active')
+        }
+      })
+    }
+  })
+}, { threshold: 0.3 })
+
+sections.forEach(s => observer.observe(s))
+</script>
+</body>
+</html>

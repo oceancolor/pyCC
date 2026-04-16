@@ -1,0 +1,1 @@
+# stub outputFormatting.ts

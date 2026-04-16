@@ -1,0 +1,1 @@
+# stub usePagination.ts

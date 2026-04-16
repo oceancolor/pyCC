@@ -1,0 +1,1211 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-16T03:07:45.513Z",
+  "entries": {
+    "memory:memory/2026-04-05.md:2345:2392": {
+      "key": "memory:memory/2026-04-05.md:2345:2392",
+      "path": "memory/2026-04-05.md",
+      "startLine": 2345,
+      "endLine": 2392,
+      "source": "memory",
+      "snippet": "）",
+      "recallCount": 5,
+      "dailyCount": 0,
+      "totalScore": 2.175303021073341,
+      "maxScore": 0.4683380722999572,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "82dc2dca4348",
+        "fd036342bd40",
+        "3666c79a3190",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": []
+    },
+    "memory:memory/2026-04-05.md:696:746": {
+      "key": "memory:memory/2026-04-05.md:696:746",
+      "path": "memory/2026-04-05.md",
+      "startLine": 696,
+      "endLine": 746,
+      "source": "memory",
+      "snippet": "-|---|---|",
+      "recallCount": 6,
+      "dailyCount": 0,
+      "totalScore": 2.5807762116193764,
+      "maxScore": 0.4610685884952545,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "82dc2dca4348",
+        "fd036342bd40",
+        "3666c79a3190",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": []
+    },
+    "memory:memory/2026-04-05.md:424:471": {
+      "key": "memory:memory/2026-04-05.md:424:471",
+      "path": "memory/2026-04-05.md",
+      "startLine": 424,
+      "endLine": 471,
+      "source": "memory",
+      "snippet": "ix",
+      "recallCount": 5,
+      "dailyCount": 0,
+      "totalScore": 2.1437333106994627,
+      "maxScore": 0.46037963330745696,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "82dc2dca4348",
+        "fd036342bd40",
+        "3666c79a3190",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": []
+    },
+    "memory:memory/2026-04-05.md:1879:1926": {
+      "key": "memory:memory/2026-04-05.md:1879:1926",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1879,
+      "endLine": 1926,
+      "source": "memory",
+      "snippet": "态序列：queued → thinking → tool/coding/web → done/error",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "totalScore": 1.2358920842409133,
+      "maxScore": 0.43643637001514435,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "fd036342bd40",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "tool/coding/web",
+        "done/error",
+        "序列",
+        "queued",
+        "thinking",
+        "tool",
+        "coding",
+        "web"
+      ]
+    },
+    "memory:memory/2026-04-05.md:1433:1483": {
+      "key": "memory:memory/2026-04-05.md:1433:1483",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1433,
+      "endLine": 1483,
+      "source": "memory",
+      "snippet": "ed / TaskCompleted Elicitation / ElicitationResult",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "totalScore": 1.267585963010788,
+      "maxScore": 0.4308987349271774,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-15T07:11:40.610Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "97979a5c15ab",
+        "82dc2dca4348"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "taskcompleted",
+        "elicitation",
+        "elicitationresult"
+      ]
+    },
+    "memory:memory/2026-04-05.md:3226:3265": {
+      "key": "memory:memory/2026-04-05.md:3226:3265",
+      "path": "memory/2026-04-05.md",
+      "startLine": 3226,
+      "endLine": 3265,
+      "source": "memory",
+      "snippet": "ch）：** ```",
+      "recallCount": 5,
+      "dailyCount": 0,
+      "totalScore": 2.0586874723434447,
+      "maxScore": 0.420227637887001,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "82dc2dca4348",
+        "fd036342bd40",
+        "3666c79a3190",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": []
+    },
+    "memory:memory/2026-04-05.md:2839:2883": {
+      "key": "memory:memory/2026-04-05.md:2839:2883",
+      "path": "memory/2026-04-05.md",
+      "startLine": 2839,
+      "endLine": 2883,
+      "source": "memory",
+      "snippet": "并行控制",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "totalScore": 1.190082749724388,
+      "maxScore": 0.41973647177219386,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.172Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "fd036342bd40",
+        "3666c79a3190"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "并行",
+        "控制"
+      ]
+    },
+    "memory:memory/2026-04-09.md:40:83": {
+      "key": "memory:memory/2026-04-09.md:40:83",
+      "path": "memory/2026-04-09.md",
+      "startLine": 40,
+      "endLine": 83,
+      "source": "memory",
+      "snippet": "所有 `@ant/*` 包都是 Anthropic 私有包，公开源码里不存在。通过服务器上完整源码分析出了所有需要的类型和 API： **需要补全/新建的 stubs：** 1. **`@ant/computer-use-input`**（完全缺失） - 需要：`ComputerUseInput`（type），`ComputerUseInputAPI`（type） - 运行时：只在 macOS 下实际用到，Windows 会 throw \"not supported\" 2. **`@ant/computer-use-mcp`**（stub 存在但不完整） - 缺 subpath exports: `/sentinelApps`, `/types` - 需导出：`API_RESIZE_PARAMS`, `targetImageSize`, `bindSessionContext`, `buildComputerUseTools`, `DEFAULT_GRANT_FLAGS` - `/types` 需导出：`CoordinateMode`, `CuSubGates`, `CuPermissionRequest`, `CuPermissionResponse`, `ScreenshotDims` - `/sentinelApps` 需导出：`getSentinelCategory` 3. **`@ant/claude-for-chrome-mcp`**（stub 存在但不完整） - 需导出：`BROWSER_TOOLS`（数组，包含",
+      "recallCount": 9,
+      "dailyCount": 0,
+      "totalScore": 3.9640689909458158,
+      "maxScore": 0.47730483710765836,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "97979a5c15ab",
+        "8f2237ae1c1f",
+        "fd036342bd40",
+        "3666c79a3190",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "需要补全/新建的",
+        "ant/computer-use-input",
+        "ant/computer-use-mcp",
+        "api-resize-params",
+        "default-grant-flags",
+        "ant/claude-for-chrome-mcp",
+        "browser-tools",
+        "所有"
+      ]
+    },
+    "memory:memory/2026-04-05.md:1317:1367": {
+      "key": "memory:memory/2026-04-05.md:1317:1367",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1317,
+      "endLine": 1367,
+      "source": "memory",
+      "snippet": "S：**",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.4029660195112228,
+      "maxScore": 0.4029660195112228,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-13T05:24:08.138Z",
+      "queryHashes": [
+        "3f6cd0cb1718"
+      ],
+      "recallDays": [
+        "2026-04-13"
+      ],
+      "conceptTags": []
+    },
+    "memory:memory/2026-04-10.md:1:45": {
+      "key": "memory:memory/2026-04-10.md:1:45",
+      "path": "memory/2026-04-10.md",
+      "startLine": 1,
+      "endLine": 45,
+      "source": "memory",
+      "snippet": "# 2026-04-10 Memory --- ## Claude Code Python 移植 — 今日进度快照（13:22 CST） ### 总体指标 - **Python 文件总数：1261**（从昨天的 1169 增至今日 1261） - **测试：48 passed ✅**（全程稳定） - **PROGRESS.md 最后更新：** 2026-04-10 08:44 CST ### 今日完成的文件 | 文件 | TS 行数 | Python 行数 | 说明 | |------|---------|------------|------| | `tasks/local_main_session_task/` | 479 | ~280 | Ctrl+B 后台会话任务 | | `cli/print.py` | 5594 | 965 | CLI 打印核心，MCP 协调，权限检查 | | `bridge/bridge_main.py` | 2999 | 2631 | Bridge 主循环，parse_args，run_bridge_loop | | `bootstrap/state.py` | 1758 | 1403 | 全局会话状态单例，所有 getter/setter | | `utils/worktree.py` | 1519 | 1517 | git worktree 创建/清理/tmux 集成（20个函数）| | `entrypoints/agent_sdk_types.py` | 443 | 573 | AgentSDK 类型定义 | | `entrypo",
+      "recallCount": 8,
+      "dailyCount": 0,
+      "totalScore": 3.371257254481315,
+      "maxScore": 0.49116035699844357,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "8f2237ae1c1f",
+        "82dc2dca4348",
+        "fd036342bd40",
+        "3666c79a3190",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "progress.md",
+        "tasks/local-main-session-task",
+        "cli/print.py",
+        "bridge/bridge-main.py",
+        "parse-args",
+        "run-bridge-loop",
+        "bootstrap/state.py",
+        "getter/setter"
+      ]
+    },
+    "memory:memory/2026-04-08.md:1:45": {
+      "key": "memory:memory/2026-04-08.md:1:45",
+      "path": "memory/2026-04-08.md",
+      "startLine": 1,
+      "endLine": 45,
+      "source": "memory",
+      "snippet": "# 2026-04-08 记忆日志 --- ## Claude Code 移植进度快照（19:26） ### 当前状态 - **Python**：200 个 .py 文件，23 tests passed ✅ - **Rust**：88 个 .rs 文件（无法编译验证） ### Python 模块分布 - utils: 134个（覆盖约 45% 的 TS utils/） - tools: 17个 - services: 12个（含核心 query.py agentic 循环） - commands: 12个 - 其他（types, constants, hooks, skills, bridge 等）: 25个 ### Rust Crate 完成度 claude-types ✅ claude-constants ✅ claude-utils ✅（~35文件） claude-tools ✅（8工具）claude-services ✅（含 query.rs 578行） claude-commands ✅（9命令）claude-cli ✅ ### 本次新增 utils（今天写了约 75 个） classifier_approvals, control_message_compat, cross_project_resume, claude_code_hints, error_log_sink, example_commands, collapse_messages, export_renderer, early_input, config_constants, diag_l",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.8008559048175812,
+      "maxScore": 0.4061793565750122,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "query.py",
+        "claude-types",
+        "claude-constants",
+        "claude-utils",
+        "claude-tools",
+        "claude-services",
+        "query.rs",
+        "claude-commands"
+      ]
+    },
+    "memory:memory/2026-04-05.md:307:361": {
+      "key": "memory:memory/2026-04-05.md:307:361",
+      "path": "memory/2026-04-05.md",
+      "startLine": 307,
+      "endLine": 361,
+      "source": "memory",
+      "snippet": "← 常用命令和顺序 # Errors & Corrections ← 错误及修复，用户纠正的内容 # Codebase and System Documentation ← 系统组件及其关系 # Learnings ← 什么有效/无效，避免重复失败 # Key results ← 用户要求的精确输出（完整答案、表格等） # Worklog ← 逐步简述做了什么 ```",
+      "recallCount": 3,
+      "dailyCount": 0,
+      "totalScore": 1.2653620094060898,
+      "maxScore": 0.44493787884712216,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-15T07:11:40.610Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "97979a5c15ab",
+        "82dc2dca4348"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "什么有效/无效",
+        "常用",
+        "命令",
+        "顺序",
+        "errors",
+        "corrections",
+        "错误",
+        "修复"
+      ]
+    },
+    "memory:memory/2026-04-05.md:1088:1134": {
+      "key": "memory:memory/2026-04-05.md:1088:1134",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1088,
+      "endLine": 1134,
+      "source": "memory",
+      "snippet": "rompting() = true → 回退到人工确认",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.3919866919517517,
+      "maxScore": 0.3919866919517517,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-13T05:24:08.138Z",
+      "queryHashes": [
+        "3f6cd0cb1718"
+      ],
+      "recallDays": [
+        "2026-04-13"
+      ],
+      "conceptTags": [
+        "rompting",
+        "true",
+        "退到",
+        "人工",
+        "确认"
+      ]
+    },
+    "memory:memory/2026-04-05.md:1168:1208": {
+      "key": "memory:memory/2026-04-05.md:1168:1208",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1168,
+      "endLine": 1208,
+      "source": "memory",
+      "snippet": "现窄 → Spawn fresh（避免噪声上下文）",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.3912304580211639,
+      "maxScore": 0.3912304580211639,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-13T05:24:08.138Z",
+      "queryHashes": [
+        "3f6cd0cb1718"
+      ],
+      "recallDays": [
+        "2026-04-13"
+      ],
+      "conceptTags": [
+        "spawn",
+        "fresh",
+        "避免",
+        "噪声",
+        "上下文"
+      ]
+    },
+    "memory:memory/2026-04-05.md:465:509": {
+      "key": "memory:memory/2026-04-05.md:465:509",
+      "path": "memory/2026-04-05.md",
+      "startLine": 465,
+      "endLine": 509,
+      "source": "memory",
+      "snippet": "bit、mushroom、chonk",
+      "recallCount": 4,
+      "dailyCount": 0,
+      "totalScore": 1.5750089704990384,
+      "maxScore": 0.40258533656597134,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.172Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "82dc2dca4348",
+        "fd036342bd40",
+        "3666c79a3190"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "bit",
+        "mushroom",
+        "chonk"
+      ]
+    },
+    "memory:memory/2026-04-05.md:236:282": {
+      "key": "memory:memory/2026-04-05.md:236:282",
+      "path": "memory/2026-04-05.md",
+      "startLine": 236,
+      "endLine": 282,
+      "source": "memory",
+      "snippet": "thBook flags 均为 true",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.3800669640302658,
+      "maxScore": 0.3800669640302658,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-13T05:24:08.138Z",
+      "queryHashes": [
+        "3f6cd0cb1718"
+      ],
+      "recallDays": [
+        "2026-04-13"
+      ],
+      "conceptTags": [
+        "thbook",
+        "flags",
+        "true"
+      ]
+    },
+    "memory:memory/2026-04-05.md:1:43": {
+      "key": "memory:memory/2026-04-05.md:1:43",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1,
+      "endLine": 43,
+      "source": "memory",
+      "snippet": "ollapse_drain_retry / token_budget_continuation",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.7784301578998565,
+      "maxScore": 0.399077370762825,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "3f6cd0cb1718",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "ollapse-drain-retry",
+        "token-budget-continuation"
+      ]
+    },
+    "memory:memory/2026-04-05.md:873:920": {
+      "key": "memory:memory/2026-04-05.md:873:920",
+      "path": "memory/2026-04-05.md",
+      "startLine": 873,
+      "endLine": 920,
+      "source": "memory",
+      "snippet": "组：** ``` Session 标识： sessionId / parentSessionId / originalCwd / projectRoot / cwdState",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.37062399089336395,
+      "maxScore": 0.37062399089336395,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-13T05:24:08.138Z",
+      "queryHashes": [
+        "3f6cd0cb1718"
+      ],
+      "recallDays": [
+        "2026-04-13"
+      ],
+      "conceptTags": [
+        "标识",
+        "sessionid",
+        "parentsessionid",
+        "originalcwd",
+        "projectroot",
+        "cwdstate"
+      ]
+    },
+    "memory:memory/2026-04-05.md:385:440": {
+      "key": "memory:memory/2026-04-05.md:385:440",
+      "path": "memory/2026-04-05.md",
+      "startLine": 385,
+      "endLine": 440,
+      "source": "memory",
+      "snippet": "← 同上 systemContext, ← 同上",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.36798626780509947,
+      "maxScore": 0.36798626780509947,
+      "firstRecalledAt": "2026-04-13T05:24:08.138Z",
+      "lastRecalledAt": "2026-04-13T05:24:08.138Z",
+      "queryHashes": [
+        "3f6cd0cb1718"
+      ],
+      "recallDays": [
+        "2026-04-13"
+      ],
+      "conceptTags": [
+        "同上",
+        "systemcontext"
+      ]
+    },
+    "memory:memory/2026-04-05.md:1600:1649": {
+      "key": "memory:memory/2026-04-05.md:1600:1649",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1600,
+      "endLine": 1649,
+      "source": "memory",
+      "snippet": "- `consumeSpeculativeClassifierCheck`：实际执行时先拿已有结果 - 用户看权限提示的时间 ≈ 分类器运行时间，完全隐藏延迟 - `speculativeChecks` Map，signal abort 时 `.catch(() => {})` 吞掉 unhandled rejection **DCE Cliff 注释（工程细节）：** - Bun 的 `feature()` 评估器有 per-function 复杂度预算 - `bashToolHasPermission` 函数体接近限制 - `import { X as Y }` 别名计入预算；超过阈值后 Bun 无法证明 `feature('BASH_CLASSIFIER')` 是常量 - 解决方案：用 `const X = Y` 顶层重绑定代替 import 别名 **MAX_SUBCOMMANDS_FOR_SECURITY_CHECK = 50：** - 防止复杂 compound commands 产生指数级 subcommand 数组 - 原 bug #21405 的 ReDoS fix 可能不完整；50 是硬上限 --- ## 任务完成归档（2026-04-05 17:00） ### 五项任务全部完成 **任务1：源码深挖（7037行剩余文件）** - utils/hooks/AsyncHookRegistry.ts（309行） - utils/hooks/ssrfGuard.ts（294行） - utils/hooks/hooksConfigManager.ts（",
+      "recallCount": 7,
+      "dailyCount": 0,
+      "totalScore": 2.949501064419746,
+      "maxScore": 0.44473216235637664,
+      "firstRecalledAt": "2026-04-13T11:36:45.275Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "97979a5c15ab",
+        "8f2237ae1c1f",
+        "82dc2dca4348",
+        "fd036342bd40",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "per-function",
+        "bash-classifier",
+        "utils/hooks/asynchookregistry.ts",
+        "utils/hooks/ssrfguard.ts",
+        "实际",
+        "执行",
+        "已有",
+        "结果"
+      ]
+    },
+    "memory:memory/2026-04-05.md:621:670": {
+      "key": "memory:memory/2026-04-05.md:621:670",
+      "path": "memory/2026-04-05.md",
+      "startLine": 621,
+      "endLine": 670,
+      "source": "memory",
+      "snippet": "**阶段 6：PreToolUse hooks** - `runPreToolUseHooks` → 可能返回 message / hookPermissionResult / updatedInput / preventContinuation / stopReason - ant 用户且 hooks 耗时 > 500ms：显示 PreToolUse hook summary **阶段 7：权限决策** - `resolveHookPermissionDecision` → 合并 hook 结果与 `canUseTool()` 结果 - canUseTool auto 模式：等 TRANSCRIPT_CLASSIFIER 完成（side_query） - `PermissionDeniedHooks`：分类器拒绝时运行，hook 可返回 `{retry: true}` 让模型重试 **阶段 8：tool.call()** - 实际执行 **阶段 9：processToolResultBlock** - 截断大结果（`tool.maxResultSizeChars`） - acceptFeedback（用户批准时的反馈文本）拼入 content **阶段 10：PostToolUse hooks** --- ### BashTool 关键参数 - **默认超时：** 120,000ms（2分钟），`BASH_DEFAULT_TIMEOUT_MS` 环境变量可覆盖 - **最大超时：** 600,000ms（10分钟），`BASH_MAX_TIMEOUT_MS` 可",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.8052774220705032,
+      "maxScore": 0.4148992657661438,
+      "firstRecalledAt": "2026-04-13T11:36:45.275Z",
+      "lastRecalledAt": "2026-04-15T07:11:40.610Z",
+      "queryHashes": [
+        "97979a5c15ab",
+        "82dc2dca4348"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "transcript-classifier",
+        "side-query",
+        "tool.call",
+        "tool.maxresultsizechars",
+        "bash-default-timeout-ms",
+        "bash-max-timeout-ms",
+        "阶段",
+        "pretooluse"
+      ]
+    },
+    "memory:memory/2026-04-04.md:103:114": {
+      "key": "memory:memory/2026-04-04.md:103:114",
+      "path": "memory/2026-04-04.md",
+      "startLine": 103,
+      "endLine": 114,
+      "source": "memory",
+      "snippet": "- **Dream 系统**：会话结束后记忆整合（独立子进程 forked agent，分享父进程 prompt cache） - **KAIROS**：多智能体编排，in_process_teammate 任务类型 - **Undercover Mode**：防止泄露 Claude Code 正在运行（process 名称伪装） - **Coordinator Mode**：feature-gated，注入额外 userContext - **Claude Opus 4.6**：在源码中可见，尚未公开发布 - **SSH Remote (SSH_REMOTE feature)**：远程 SSH 连接支持，v1 不支持 headless 模式 - **Teleport**：远程会话续传功能 ### 文件路径 - 解压目录：`/root/.openclaw/workspace/claude-code-analysis/claude-code-source/` - README：`/root/.openclaw/workspace/claude-code-analysis/claude-code-source/README.md`",
+      "recallCount": 4,
+      "dailyCount": 0,
+      "totalScore": 1.6750354170799255,
+      "maxScore": 0.45865108072757715,
+      "firstRecalledAt": "2026-04-13T11:37:59.510Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "8f2237ae1c1f",
+        "82dc2dca4348",
+        "fd036342bd40",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "in-process-teammate",
+        "feature-gated",
+        "4.6",
+        "ssh-remote",
+        "dream",
+        "系统",
+        "会话",
+        "结束"
+      ]
+    },
+    "memory:memory/2026-04-07.md:37:92": {
+      "key": "memory:memory/2026-04-07.md:37:92",
+      "path": "memory/2026-04-07.md",
+      "startLine": 37,
+      "endLine": 92,
+      "source": "memory",
+      "snippet": "退到 bundle patch 方案是唯一可行路径** **下次对话应直接引导用户回到 PowerShell patch 脚本方案：** - 脚本路径：`C:\\Users\\benjamin\\patch-claude.ps1`（已在本次对话中生成） - 备份文件：`cli.js.bak`（需要先备份） - 运行：`powershell -ExecutionPolicy Bypass -File \"C:\\Users\\benjamin\\patch-claude.ps1\"` --- ## Claude Code 接入混元模型改造（进行中） ### 背景",
+      "recallCount": 6,
+      "dailyCount": 0,
+      "totalScore": 2.663002330064774,
+      "maxScore": 0.4649347275495529,
+      "firstRecalledAt": "2026-04-13T11:37:59.510Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "8f2237ae1c1f",
+        "fd036342bd40",
+        "3666c79a3190",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "备份",
+        "patch-claude.ps1",
+        "cli.js.bak",
+        "退到",
+        "bundle",
+        "patch",
+        "方案",
+        "唯一"
+      ]
+    },
+    "memory:memory/2026-04-07.md:114:147": {
+      "key": "memory:memory/2026-04-07.md:114:147",
+      "path": "memory/2026-04-07.md",
+      "startLine": 114,
+      "endLine": 147,
+      "source": "memory",
+      "snippet": "- `getAnthropicApiKey()` 开头加：`if (process.env.HUNYUAN_API_KEY) return process.env.HUNYUAN_API_KEY` 4. `utils/model/model.ts` - import `HUNYUAN_DEFAULT_MODEL, HUNYUAN_SMALL_MODEL` from hunyuan.ts - `getSmallFastModel()` 混元模式返回 `HUNYUAN_SMALL_MODEL` - `getDefaultSonnetModel()` 混元模式返回 `HUNYUAN_DEFAULT_MODEL` ### 当前卡点：无法编译 **用户环境：** - Windows，路径：`F:\\Claude code src\\` - 目录结构：只有一个 `src\\` 子目录（纯源码，无 package.json / build 配置） - 没有安装 Bun - 之前说\"编译过\"实际上可能没真正成功 **下一步方向（下次对话继续）：** - 检查用户是否有全局安装的 `@anthropic-ai/claude-code` npm 包 - 如果有：直接 patch 编译好的 bundle JS 文件（字符串替换，无需重新编译） - 等待用户运行 `npm list -g @anthropic-ai/claude-code` 或 `where.exe claude` 的结果 ### 混元环境变量说明（给用户的） ``` HUNYUAN_API_KEY=你的混",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.8748112857341765,
+      "maxScore": 0.44938586950302123,
+      "firstRecalledAt": "2026-04-13T11:37:59.510Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.148Z",
+      "queryHashes": [
+        "8f2237ae1c1f",
+        "fd036342bd40"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "process.env.hunyuan-api-key",
+        "utils/model/model.ts",
+        "hunyuan-default-model",
+        "hunyuan-small-model",
+        "hunyuan.ts",
+        "package.json",
+        "anthropic-ai/claude-code",
+        "where.exe"
+      ]
+    },
+    "memory:memory/2026-04-05.md:270:320": {
+      "key": "memory:memory/2026-04-05.md:270:320",
+      "path": "memory/2026-04-05.md",
+      "startLine": 270,
+      "endLine": 320,
+      "source": "memory",
+      "snippet": "Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with \"I'll continue\" or similar. Pick up the last task as if the break never happened. ``` --- ### 4. sessionMemoryCompact.ts — Session Memory 替换（实验性） **原理：** 不调摘要 LLM，直接用 Session Memory（已结构化存储的上下文）替代历史消息。 **触发条件：** - `tengu_session_memory` AND `tengu_sm_compact` GrowthBook flags 均为 true - 或 `ENABLE_CLAUDE_CODE_SM_COMPACT` 环境变量 **calculateMessagesToKeepIndex（决定保留哪些消息）：** - 从 `lastSummarizedMessageId` 开始（增量摘要锚点） - 向前展开直到满足：min 10K tokens AND min 5 条有文本的消息 - 硬上限：40K tokens - Floor = 最近 compact boundary + 1（防止穿越 boundary 导致 loader 跳过内部消息） **关键边界处理（adjustIndexToPreserveAPIInvariants）：** - 工具对：",
+      "recallCount": 4,
+      "dailyCount": 0,
+      "totalScore": 1.709661042690277,
+      "maxScore": 0.4379781901836395,
+      "firstRecalledAt": "2026-04-13T11:37:59.510Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "8f2237ae1c1f",
+        "82dc2dca4348",
+        "fd036342bd40",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "sessionmemorycompact.ts",
+        "tengu-session-memory",
+        "tengu-sm-compact",
+        "enable-claude-code-sm-compact",
+        "resume",
+        "directly",
+        "not",
+        "acknowledge"
+      ]
+    },
+    "memory:memory/2026-04-05.md:3394:3452": {
+      "key": "memory:memory/2026-04-05.md:3394:3452",
+      "path": "memory/2026-04-05.md",
+      "startLine": 3394,
+      "endLine": 3452,
+      "source": "memory",
+      "snippet": "命令数量 40个内置命令 工具策略层 7层叠加 streamFn包装 7层 bash安全检查 23道关卡 hook数量 30个 hook执行模式 3种（void/modifying/claiming） session reset条件 4种触发 子 agent 嵌套 DEFAULT_MAX_SPAWN_DEPTH=1 最大并发子agent maxChildren=5 context阈值 85%触发 autoCompact APNs环境 2种（sandbox/production） exec security 4档（deny/allowlist/ask/full） ``` --- ## 任务4完成：技术文章 **文件：** `/root/.openclaw/workspace/claude-code-analysis/deep-dive-article.md` **字数：** ~16,900 字符（约 8,000-9,000 中文正文字） **章节：** 8大章，25个工程决策 + 结尾 + 附录关键数字表 **文章定位：** 面向工程师，两份源码（Claude Code + OpenClaw）精华提炼， 无交叉对比（各自独立），以\"25个工程决策\"为主线， 每节有代码示例 + 设计原因 + 权衡说明。 **章节结构：** - 第一章：状态管理（不可变替换 / 自实现流式 JSON O(n)） - 第二章：API 调用（Prompt Cache Latch / 529 bail / Fa",
+      "recallCount": 4,
+      "dailyCount": 0,
+      "totalScore": 1.629655060172081,
+      "maxScore": 0.4268374353647232,
+      "firstRecalledAt": "2026-04-13T11:37:59.510Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "8f2237ae1c1f",
+        "82dc2dca4348",
+        "fd036342bd40",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-13",
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "void/modifying/claiming",
+        "default-max-spawn-depth",
+        "sandbox/production",
+        "deny/allowlist/ask/full",
+        "000-9",
+        "命令",
+        "数量",
+        "工具"
+      ]
+    },
+    "memory:memory/2026-04-05.md:3081:3125": {
+      "key": "memory:memory/2026-04-05.md:3081:3125",
+      "path": "memory/2026-04-05.md",
+      "startLine": 3081,
+      "endLine": 3125,
+      "source": "memory",
+      "snippet": "人\"） --- ## OpenClaw 源码阅读完成总结 ### 已读模块完整列表（37个主要模块）： **入站处理链：**",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.8016527771949767,
+      "maxScore": 0.40895662307739256,
+      "firstRecalledAt": "2026-04-15T07:11:40.610Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "82dc2dca4348",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "openclaw",
+        "阅读",
+        "完成",
+        "总结",
+        "完整",
+        "列表",
+        "主要",
+        "处理"
+      ]
+    },
+    "memory:memory/2026-04-05.md:1837:1891": {
+      "key": "memory:memory/2026-04-05.md:1837:1891",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1837,
+      "endLine": 1891,
+      "source": "memory",
+      "snippet": "单位（28个函数），Claude Code 是以事件名为单位（27个事件名 + exit code 语义）。OpenClaw 的 hook 是强类型（TypeScript 接口），Claude Code 的 hook 是 shell 脚本协议。 ---",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.7926085323095322,
+      "maxScore": 0.40456585586071014,
+      "firstRecalledAt": "2026-04-15T07:11:40.610Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "82dc2dca4348",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "单位",
+        "函数",
+        "claude",
+        "code",
+        "是以",
+        "事件",
+        "名为",
+        "exit"
+      ]
+    },
+    "memory:memory/2026-04-09.md:69:92": {
+      "key": "memory:memory/2026-04-09.md:69:92",
+      "path": "memory/2026-04-09.md",
+      "startLine": 69,
+      "endLine": 92,
+      "source": "memory",
+      "snippet": "需要给 Producer 生成完整的 PowerShell 脚本，一次性： 1. 补全所有缺失的 stub 文件内容 2. 在 `src/` 下创建 `global.d.ts` 3. 在 `src/services/contextCollapse/` 下创建三个模块文件 4. 更新 `package.json` 加入 `@ant/computer-use-input` stub 配置 5. 重新 `bun install` + `bun run build` --- ## Claude Code 移植进度快照 (14:30 GMT+8) ### 总文件数：400 .py（测试 48 passed ✅） ### 本日完成的批次 - **batch24**：slice_ansi, sanitization, undercover, exec_file_no_throw_portable, team_memory_ops, ca_certs_config, sleep, which, team_discovery, stream - **batch26**（10/12 超时）：aws_auth_status_manager, telemetry_attributes, pdf_utils, get_worktree_paths, process_utils, browser, xdg, session_url, slash_command_parsing, semver - **batch26 手写补完**：glob_patterns.py, horizontal_scro",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.40314446985721586,
+      "maxScore": 0.40314446985721586,
+      "firstRecalledAt": "2026-04-15T07:11:40.610Z",
+      "lastRecalledAt": "2026-04-15T07:11:40.610Z",
+      "queryHashes": [
+        "82dc2dca4348"
+      ],
+      "recallDays": [
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "global.d.ts",
+        "src/services/contextcollapse",
+        "package.json",
+        "ant/computer-use-input",
+        "slice-ansi",
+        "exec-file-no-throw-portable",
+        "team-memory-ops",
+        "ca-certs-config"
+      ]
+    },
+    "memory:memory/2026-04-05.md:731:796": {
+      "key": "memory:memory/2026-04-05.md:731:796",
+      "path": "memory/2026-04-05.md",
+      "startLine": 731,
+      "endLine": 796,
+      "source": "memory",
+      "snippet": "**防递归 fork：** `isInForkChild(messages)` 检查 history 里是否有 `<fork-boilerplate>` 标签 **fork 孩子行为规范（prompt 里写死）：** - \"STOP. READ THIS FIRST.\" - 不转发子 agent、不对话、不加注释 - 必须以 `Scope:` 开头输出 - 文件修改必须 commit 并附 hash - 报告 < 500 词 --- ### spawnMultiAgent.ts — Swarm（多终端 Agent 协作） **三种后端（BackendType）：** | 后端 | 条件 | 方式 | |---|---|---| | `tmux` | 最通用，tmux 可用 | 新建/复用 tmux 会话，每个 teammate 一个 pane | | `iterm2` | macOS + iTerm2 + it2 CLI | 原生 Split Pane | | `in-process` | `isInProcessEnabled()` | 同 Node.js 进程，隔离 context，无新终端 | **布局策略（tmux）：** - 已在 tmux 内：split 当前 window（Leader 左，Teammates 右） - 在 tmux 外：创建 `claude-swarm` session（全 tile 布局） **in-process 模式（最新实验性）：** - `startInProcessTeammate(config)` → 同进程跑，完全隔离",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.8222626447677612,
+      "maxScore": 0.42381058037281033,
+      "firstRecalledAt": "2026-04-15T07:11:40.610Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "82dc2dca4348",
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-15",
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "fork-boilerplate",
+        "spawnmultiagent.ts",
+        "新建/复用",
+        "in-process",
+        "node.js",
+        "claude-swarm",
+        "fork",
+        "isinforkchild"
+      ]
+    },
+    "memory:memory/2026-04-05.md:2985:3027": {
+      "key": "memory:memory/2026-04-05.md:2985:3027",
+      "path": "memory/2026-04-05.md",
+      "startLine": 2985,
+      "endLine": 3027,
+      "source": "memory",
+      "snippet": "4. agents.defaults.model / agents.<id>.model（配置文件） 5. DEFAULT_PROVIDER / DEFAULT_MODEL ``` **模型 allowlist 验证：** - `buildAllowedModelSet(cfg, catalog, agentId)` → allowedModelKeys: Set - storedOverride 不在 allowedModelKeys → `applyModelOverrideToSessionEntry` 清除 + 写 store - `resetModelOverride=true` 通知上层（可能需要告知用户模型被重置） **authProfile 联动：** - `sessionEntry.authProfileOverride` 指定 auth profile - 如果 profile 对应 provider 与当前 provider 不匹配 → `clearSessionAuthProfileOverride` - 确保 auth profile 只在对应 provider 下生效 **懒加载 model catalog：** - `loadModelCatalogRuntime()` 只在 `hasModelDirective=true`（用户输入了 /model 指令）时才加载 - catalog 一旦加载则缓存（`modelCatalogRuntimePromise` 单例） - `resolveThinkingDefault` / `resolveR",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.3852435678243637,
+      "maxScore": 0.3852435678243637,
+      "firstRecalledAt": "2026-04-15T07:11:40.610Z",
+      "lastRecalledAt": "2026-04-15T07:11:40.610Z",
+      "queryHashes": [
+        "82dc2dca4348"
+      ],
+      "recallDays": [
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "agents.defaults.model",
+        "default-provider",
+        "default-model",
+        "sessionentry.authprofileoverride",
+        "agents",
+        "model",
+        "配置",
+        "文件"
+      ]
+    },
+    "memory:memory/2026-04-05.md:2536:2582": {
+      "key": "memory:memory/2026-04-05.md:2536:2582",
+      "path": "memory/2026-04-05.md",
+      "startLine": 2536,
+      "endLine": 2582,
+      "source": "memory",
+      "snippet": "对最近 PREFLIGHT_MAX_COMMITS 个 commit 逐个尝试： a. git checkout <sha> b. npm/pnpm/bun install（依赖安装）",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.8249331206083297,
+      "maxScore": 0.4311165511608124,
+      "firstRecalledAt": "2026-04-15T07:13:58.148Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.172Z",
+      "queryHashes": [
+        "fd036342bd40",
+        "3666c79a3190"
+      ],
+      "recallDays": [
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "preflight-max-commits",
+        "npm/pnpm/bun",
+        "最近",
+        "commit",
+        "尝试",
+        "git",
+        "checkout",
+        "sha"
+      ]
+    },
+    "memory:memory/2026-04-10.md:66:96": {
+      "key": "memory:memory/2026-04-10.md:66:96",
+      "path": "memory/2026-04-10.md",
+      "startLine": 66,
+      "endLine": 96,
+      "source": "memory",
+      "snippet": "- **当前状态（17:55 CST）：** `fix-pkg.py` 跑 OK，`bun install` 完成，等待 `bun run build.ts` 结果 ### PowerShell 踩坑记录（避免重蹈覆辙） - `@'...'@` here-string 内不能有单引号（TypeScript 代码大量单引号 → 提前截断） - `@\"...\"@` here-string 内不能有双引号（JSON 大量双引号 → 提前截断） - 字符串数组方案：`$Q = [char]39` 拼接单引号，但 `2>&1` 里的 `&` 仍会触发解析报错 - **结论：含特殊字符的多行内容在 PowerShell 里极难处理，用 Python 脚本替代** ### stubs 结构（已创建） ``` stubs/ ant-computer-use-input/ ← 新建（Python 脚本创建） package.json index.ts ant-computer-use-mcp/ ← 已有，补全了： index.ts（更新） types.ts（新建） sentinelApps.ts（新建） package.json（更新，加 exports 字段） ant-claude-for-chrome-mcp/ ← 已有，补全了： index.ts（BROWSER_TOOLS 17个工具） src/ ink/global.d.ts ← 新建（export {}） se",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.8462913364171981,
+      "maxScore": 0.45300344228744505,
+      "firstRecalledAt": "2026-04-15T07:13:58.148Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.172Z",
+      "queryHashes": [
+        "fd036342bd40",
+        "3666c79a3190"
+      ],
+      "recallDays": [
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "fix-pkg.py",
+        "build.ts",
+        "here-string",
+        "ant-computer-use-input",
+        "package.json",
+        "index.ts",
+        "ant-computer-use-mcp",
+        "types.ts"
+      ]
+    },
+    "memory:memory/2026-04-05.md:779:844": {
+      "key": "memory:memory/2026-04-05.md:779:844",
+      "path": "memory/2026-04-05.md",
+      "startLine": 779,
+      "endLine": 844,
+      "source": "memory",
+      "snippet": "s` 阶段过滤，不匹配的 hook 根本不spawn进程",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.8075589329004287,
+      "maxScore": 0.42291555404663084,
+      "firstRecalledAt": "2026-04-15T07:13:58.148Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.172Z",
+      "queryHashes": [
+        "fd036342bd40",
+        "3666c79a3190"
+      ],
+      "recallDays": [
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "阶段",
+        "过滤",
+        "匹配",
+        "hook",
+        "根本",
+        "spawn",
+        "进程"
+      ]
+    },
+    "memory:memory/2026-04-10.md:32:76": {
+      "key": "memory:memory/2026-04-10.md:32:76",
+      "path": "memory/2026-04-10.md",
+      "startLine": 32,
+      "endLine": 76,
+      "source": "memory",
+      "snippet": "- PROGRESS.md：`/root/.openclaw/workspace/PROGRESS.md` ### 剩余主要缺口（未移植的大文件） - `utils/auth.ts`（2007行）— OAuth/keychain/AWS STS，依赖深，暂缓 - `utils/hooks.ts`（5022行）— 最大文件，hook 框架核心 - 已有 stub 的大文件：hooks.py, auth.py（存根已存在） ### 移植方法论 - 子 Agent 并行模式（cli+bridge 并行，entrypoints+worktree 并行） - 每批完成后立即 `python3 -m pytest tests/ -q` 确认 48 passed - 已有 stub 的模块跳过，专注缺失文件 --- ## Claude Code Windows 本地编译修复（16:04 CST 进行中） ### 背景 Producer 在 `F:\\Claude code src\\` 有 TypeScript 源码，想用 bun 编译。通过 Python 脚本修复了 5 个依赖问题。 ### 修复脚本 - **位置：** `/root/.openclaw/workspace/fix-claude-code-build.py`（Python 版，PowerShell 版因字符串陷阱反复失败，已放弃） - **已成功修复的问题（确认）：** 1. `src/ink/global.d.ts` ✅ 2. `@ant/computer-use-mcp/sentinelApps` ✅",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.8517960727214813,
+      "maxScore": 0.42589803636074064,
+      "firstRecalledAt": "2026-04-15T07:13:58.172Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.172Z",
+      "queryHashes": [
+        "3666c79a3190"
+      ],
+      "recallDays": [
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "progress.md",
+        "openclaw/workspace/progress.md",
+        "utils/auth.ts",
+        "oauth/keychain/aws",
+        "utils/hooks.ts",
+        "hooks.py",
+        "auth.py",
+        "src/ink/global.d.ts"
+      ]
+    },
+    "memory:memory/2026-04-05.md:1354:1395": {
+      "key": "memory:memory/2026-04-05.md:1354:1395",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1354,
+      "endLine": 1395,
+      "source": "memory",
+      "snippet": "irections 不标 `isBashSecurityCheckForMisparsing`",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.4235040187835693,
+      "maxScore": 0.4235040187835693,
+      "firstRecalledAt": "2026-04-15T07:13:58.172Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.172Z",
+      "queryHashes": [
+        "3666c79a3190"
+      ],
+      "recallDays": [
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "irections",
+        "isbashsecuritycheckformisparsing"
+      ]
+    },
+    "memory:memory/2026-04-09.md:1:49": {
+      "key": "memory:memory/2026-04-09.md:1:49",
+      "path": "memory/2026-04-09.md",
+      "startLine": 1,
+      "endLine": 49,
+      "source": "memory",
+      "snippet": "pported\" 2. **`@ant/computer-use-mcp`**（stub 存在但不完整） - 缺 subpath exports: `/sentinelApps`, `/types`",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.4073622941970825,
+      "maxScore": 0.4073622941970825,
+      "firstRecalledAt": "2026-04-15T07:13:58.172Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.172Z",
+      "queryHashes": [
+        "3666c79a3190"
+      ],
+      "recallDays": [
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "ant/computer-use-mcp",
+        "pported",
+        "ant",
+        "computer",
+        "use",
+        "mcp",
+        "stub",
+        "存在"
+      ]
+    },
+    "memory:memory/2026-03-30.md:48:114": {
+      "key": "memory:memory/2026-03-30.md:48:114",
+      "path": "memory/2026-03-30.md",
+      "startLine": 48,
+      "endLine": 114,
+      "source": "memory",
+      "snippet": "- Playwright MCP（浏览器操作，已安装 Chromium） - yum 安装了 alsa-lib, libgbm, libwayland-server（Playwright 依赖）",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.40225670337677,
+      "maxScore": 0.40225670337677,
+      "firstRecalledAt": "2026-04-15T07:13:58.172Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.172Z",
+      "queryHashes": [
+        "3666c79a3190"
+      ],
+      "recallDays": [
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "alsa-lib",
+        "libwayland-server",
+        "playwright",
+        "mcp",
+        "浏览",
+        "操作",
+        "安装",
+        "chromium"
+      ]
+    },
+    "memory:memory/2026-04-05.md:1987:2041": {
+      "key": "memory:memory/2026-04-05.md:1987:2041",
+      "path": "memory/2026-04-05.md",
+      "startLine": 1987,
+      "endLine": 2041,
+      "source": "memory",
+      "snippet": "**SessionActorQueue — 底层用 KeyedAsyncQueue：** ```typescript // 核心：pendingBySession 计数（支持 getTotalPendingCount/getPendingCountForSession 监控） onEnqueue: () => increment pendingBySession[actorKey] onSettle: () => decrement pendingBySession[actorKey] ``` **RuntimeCache — LRU 模式（touch on get）：** - `get({ touch: false })` = peek（不更新 lastTouchedAt） - `collectIdleCandidates(maxIdleMs)` — idleMs = now - lastTouchedAt - `snapshot()` — 点快照，带 idleMs 字段（用于 observability） ### 11. ACP approval-classifier.ts 权限分类系统 **7个 ApprovalClass：** ``` readonly_scoped → 读取但限定范围内（safe paths） readonly_search → 仅搜索 mutating → 写操作（isMutatingToolCall 检测） exec_capable → 可执行代码（exec/spawn/shell/bash/process/cod",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "totalScore": 0.7846916079521179,
+      "maxScore": 0.39234580397605895,
+      "firstRecalledAt": "2026-04-15T07:13:58.172Z",
+      "lastRecalledAt": "2026-04-15T07:13:58.172Z",
+      "queryHashes": [
+        "3666c79a3190"
+      ],
+      "recallDays": [
+        "2026-04-15"
+      ],
+      "conceptTags": [
+        "approval-classifier.ts",
+        "readonly-scoped",
+        "readonly-search",
+        "exec-capable",
+        "sessionactorqueue",
+        "底层",
+        "keyedasyncqueue",
+        "typescript"
+      ]
+    },
+    "memory:memory/2026-04-09.md:106:118": {
+      "key": "memory:memory/2026-04-09.md:106:118",
+      "path": "memory/2026-04-09.md",
+      "startLine": 106,
+      "endLine": 118,
+      "source": "memory",
+      "snippet": "4. 推进 commands 模块（当前 14/110） 5. 大文件（hooks/auth/worktree/ide/analyze_context）分段移植 ### 命名约定（已确立） - glob.ts → glob_patterns.py（避免与标准库冲突） - process.ts → process_utils.py - signal.ts → signal.py（alias to signal_utils） - tempfile.ts → tempfile.py（alias to tempfile_utils） - set.ts → set_utils.py - json.ts → json_utils.py（待写） - ink.ts → ink_utils.py - yaml.ts → yaml_utils.py",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "totalScore": 0.4137384623289108,
+      "maxScore": 0.4137384623289108,
+      "firstRecalledAt": "2026-04-16T03:07:45.513Z",
+      "lastRecalledAt": "2026-04-16T03:07:45.513Z",
+      "queryHashes": [
+        "9a73576fb59b"
+      ],
+      "recallDays": [
+        "2026-04-16"
+      ],
+      "conceptTags": [
+        "14/110",
+        "glob.ts",
+        "glob-patterns.py",
+        "process.ts",
+        "process-utils.py",
+        "signal.ts",
+        "signal.py",
+        "signal-utils"
+      ]
+    }
+  }
+}

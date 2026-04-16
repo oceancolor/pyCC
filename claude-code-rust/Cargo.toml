@@ -1,0 +1,72 @@
+[workspace]
+members = [
+    "crates/claude-types",
+    "crates/claude-constants",
+    "crates/claude-utils",
+    "crates/claude-tools",
+    "crates/claude-services",
+    "crates/claude-commands",
+    "crates/claude-cli",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Claude Code Rust Port"]
+license = "MIT"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# HTTP
+reqwest = { version = "0.11", features = ["json", "stream"] }
+
+# Terminal colors
+colored = "2"
+
+# Regex
+regex = "1"
+
+# UUID
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Date/Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Semver
+semver = "1"
+
+# Async trait
+async-trait = "0.1"
+
+# Tracing/Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Futures
+futures = "0.3"
+
+# Once cell / lazy statics
+once_cell = "1"
+
+# Internal crates
+claude-types = { path = "crates/claude-types" }
+claude-constants = { path = "crates/claude-constants" }
+claude-utils = { path = "crates/claude-utils" }
+claude-tools = { path = "crates/claude-tools" }
+claude-services = { path = "crates/claude-services" }
+claude-commands = { path = "crates/claude-commands" }

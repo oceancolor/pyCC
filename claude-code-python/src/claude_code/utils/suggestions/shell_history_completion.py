@@ -1,0 +1,1 @@
+# stub shellHistoryCompletion.ts

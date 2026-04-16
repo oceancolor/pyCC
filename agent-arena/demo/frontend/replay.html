@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Agent Arena — 对战回放</title>
+<style>
+:root {
+  --bg: #07071a; --card: #10102a; --border: #2a2a4a;
+  --accent: #7c3aed; --accent2: #06b6d4;
+  --gold: #fbbf24; --green: #10b981; --red: #ef4444;
+  --text: #e2e2ff; --muted: #6b7280;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system,'PingFang SC',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+
+h1 { font-size: 22px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+.subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+
+.layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+
+/* MAZE */
+.maze-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; flex-shrink: 0; }
+#maze { display: inline-grid; gap: 2px; }
+.cell { width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; transition: background .15s, transform .1s; position: relative; }
+.cell-wall  { background: #161630; }
+.cell-floor { background: #0d0d22; }
+.cell-exit  { background: rgba(16,185,129,.25); color: var(--green); font-size: 16px; }
+.cell-gem-R { background: rgba(239,68,68,.25); color: #fca5a5; }
+.cell-gem-B { background: rgba(96,165,250,.25); color: #93c5fd; }
+.cell-gem-G { background: rgba(16,185,129,.25); color: #6ee7b7; }
+.cell-gem-Y { background: rgba(251,191,36,.25); color: var(--gold); }
+.cell-gem-P { background: rgba(167,139,250,.25); color: #c4b5fd; }
+.cell-chest { background: rgba(245,158,11,.25); color: #f59e0b; }
+.cell-a { background: rgba(124,58,237,.5); color: white; font-size: 18px; z-index: 2; transform: scale(1.1); box-shadow: 0 0 12px rgba(124,58,237,.8); }
+.cell-b { background: rgba(239,68,68,.5); color: white; font-size: 18px; z-index: 2; transform: scale(1.1); box-shadow: 0 0 12px rgba(239,68,68,.8); }
+.cell-ab { background: rgba(255,165,0,.6); color: white; font-size: 14px; z-index: 2; transform: scale(1.1); box-shadow: 0 0 12px orange; }
+
+/* PANEL */
+.panel { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 14px; }
+
+.score-row { display: flex; gap: 12px; }
+.score-card { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.score-card.active-a { border-color: rgba(124,58,237,.6); background: rgba(124,58,237,.08); }
+.score-card.active-b { border-color: rgba(239,68,68,.6); background: rgba(239,68,68,.08); }
+.score-card.winner { border-color: var(--gold); }
+.sc-name { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.sc-score { font-size: 36px; font-weight: 800; }
+.sc-a .sc-score { color: #a78bfa; }
+.sc-b .sc-score { color: #f87171; }
+.sc-meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.stamp-bar { height: 6px; border-radius: 3px; background: var(--border); margin-top: 8px; overflow: hidden; }
+.stamp-fill-a { height: 100%; border-radius: 3px; background: linear-gradient(90deg,var(--accent),var(--accent2)); transition: width .3s; }
+.stamp-fill-b { height: 100%; border-radius: 3px; background: linear-gradient(90deg,#ef4444,#f97316); transition: width .3s; }
+
+/* CoT box */
+.cot-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.cot-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.cot-bubble { background: rgba(124,58,237,.12); border: 1px solid rgba(124,58,237,.3); border-radius: 10px 10px 10px 0; padding: 10px 14px; font-size: 13px; color: #c4b5fd; line-height: 1.6; min-height: 40px; }
+.cot-action { margin-top: 8px; font-size: 12px; color: var(--muted); }
+.cot-action span { color: var(--accent2); font-weight: 600; }
+
+/* Controls */
+.controls { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.ctrl-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .2s; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: #6d28d9; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+
+.speed-row { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+.speed-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; }
+.speed-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+.progress-wrap { position: relative; }
+.progress-bar { width: 100%; height: 6px; border-radius: 3px; background: var(--border); cursor: pointer; appearance: none; -webkit-appearance: none; }
+.progress-bar::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+.frame-info { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: center; }
+
+/* Timeline */
+.timeline-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; max-height: 220px; overflow-y: auto; }
+.tl-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: background .15s; }
+.tl-item:hover { background: rgba(255,255,255,.04); }
+.tl-item.current { background: rgba(124,58,237,.15); }
+.tl-agent { padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.tl-a { background: rgba(124,58,237,.2); color: #a78bfa; }
+.tl-b { background: rgba(239,68,68,.2); color: #f87171; }
+.tl-action { color: var(--accent2); width: 40px; flex-shrink: 0; font-weight: 600; }
+.tl-score { color: var(--green); margin-left: auto; flex-shrink: 0; }
+.tl-thinking { color: var(--muted); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Legend */
+.legend { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; padding: 10px 0; }
+.leg { display: flex; align-items: center; gap: 5px; color: var(--muted); }
+.leg-dot { width: 16px; height: 16px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+
+@keyframes pop { 0%{transform:scale(1.4)} 100%{transform:scale(1.1)} }
+.cell-a, .cell-b { animation: pop .2s ease; }
+</style>
+</head>
+<body>
+<h1>⚔️ Agent Arena — 对战回放</h1>
+<div class="subtitle">claude-4.6-sonnet (LLM) vs 规则对手 · 地图种子 2026 · 体力 120</div>
+
+<div class="layout">
+  <!-- 左：迷宫 -->
+  <div class="maze-wrap">
+    <div id="maze"></div>
+    <div class="legend">
+      <div class="leg"><div class="leg-dot" style="background:rgba(124,58,237,.5)">🤖</div>claude</div>
+      <div class="leg"><div class="leg-dot" style="background:rgba(239,68,68,.5)">🔧</div>规则</div>
+      <div class="leg"><div class="leg-dot cell-gem-R">R</div>红宝石</div>
+      <div class="leg"><div class="leg-dot cell-gem-B">B</div>蓝宝石</div>
+      <div class="leg"><div class="leg-dot cell-gem-G">G</div>绿宝石</div>
+      <div class="leg"><div class="leg-dot cell-gem-Y">Y</div>黄宝石</div>
+      <div class="leg"><div class="leg-dot cell-gem-P">P</div>紫宝石</div>
+      <div class="leg"><div class="leg-dot cell-chest">C</div>宝箱</div>
+      <div class="leg"><div class="leg-dot cell-exit">E</div>出口</div>
+    </div>
+  </div>
+
+  <!-- 右：面板 -->
+  <div class="panel">
+    <!-- 计分板 -->
+    <div class="score-row">
+      <div class="score-card sc-a" id="card-a">
+        <div class="sc-name">🤖 claude-4.6-sonnet</div>
+        <div class="sc-score" id="score-a">0</div>
+        <div class="sc-meta" id="meta-a">体力 120 | 0 步</div>
+        <div class="stamp-bar"><div class="stamp-fill-a" id="stamp-a" style="width:100%"></div></div>
+      </div>
+      <div class="score-card sc-b" id="card-b">
+        <div class="sc-name">🔧 规则对手</div>
+        <div class="sc-score" id="score-b">0</div>
+        <div class="sc-meta" id="meta-b">体力 120 | 0 步</div>
+        <div class="stamp-bar"><div class="stamp-fill-b" id="stamp-b" style="width:100%"></div></div>
+      </div>
+    </div>
+
+    <!-- CoT 推理 -->
+    <div class="cot-box">
+      <div class="cot-title">💭 LLM 推理过程 (CoT)</div>
+      <div class="cot-bubble" id="cot-text">等待回放开始...</div>
+      <div class="cot-action" id="cot-action"></div>
+    </div>
+
+    <!-- 控制 -->
+    <div class="controls">
+      <div class="ctrl-row">
+        <button class="btn btn-primary btn-sm" id="btnPlay" onclick="togglePlay()">▶ 播放</button>
+        <button class="btn btn-outline btn-sm" onclick="stepBack()">⏮ 上一步</button>
+        <button class="btn btn-outline btn-sm" onclick="stepForward()">下一步 ⏭</button>
+        <button class="btn btn-outline btn-sm" onclick="resetReplay()">↺ 重置</button>
+        <div class="speed-row" style="margin-left:auto">
+          速度:
+          <button class="speed-btn" onclick="setSpeed(1500)">0.5x</button>
+          <button class="speed-btn active" id="sp-1" onclick="setSpeed(800)">1x</button>
+          <button class="speed-btn" onclick="setSpeed(300)">3x</button>
+          <button class="speed-btn" onclick="setSpeed(80)">快进</button>
+        </div>
+      </div>
+      <input type="range" class="progress-bar" id="progress" min="0" value="0" oninput="seekTo(this.value)">
+      <div class="frame-info" id="frame-info">帧 0 / 0</div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline-box" id="timeline"></div>
+  </div>
+</div>
+
+<script>
+const REPLAY = {"map": [["#", "#", "#", "#", "#", "#", "#", "#", "#", "#", "#", "#", "#"], ["#", ".", "#", ".", ".", ".", ".", ".", ".", ".", ".", ".", "#"], ["#", ".", "#", "#", "#", ".", "#", "#", "#", "#", "#", ".", "#"], ["#", ".", ".", ".", ".", ".", "#", ".", ".", ".", ".", ".", "#"], ["#", "#", "#", "#", "#", "#", "#", ".", "#", "#", "#", "#", "#"], ["#", ".", ".", ".", ".", ".", "#", ".", ".", ".", "#", ".", "#"], ["#", ".", "#", "#", "#", "#", "#", "#", "#", ".", "#", ".", "#"], ["#", ".", ".", ".", ".", ".", ".", ".", "#", ".", "#", ".", "#"], ["#", "#", "#", "#", "#", ".", "#", ".", "#", ".", "#", ".", "#"], ["#", ".", ".", ".", ".", ".", "#", ".", "#", ".", ".", ".", "#"], ["#", ".", "#", "#", "#", "#", "#", "#", "#", "#", "#", ".", "#"], ["#", ".", ".", ".", ".", ".", ".", ".", ".", ".", ".", "E", "#"], ["#", "#", "#", "#", "#", "#", "#", "#", "#", "#", "#", "#", "#"]], "exit": [11, 11], "width": 13, "height": 13, "frames": [{"turn": -1, "type": "init", "a_pos": [1, 1], "b_pos": [1, 11], "a_score": 0, "b_score": 0, "a_stamina": 120, "b_stamina": 120, "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}, "thinking": "对战开始"}, {"turn": 0, "type": "a", "action": "down", "a_pos": [2, 1], "b_pos": [1, 11], "a_score": 0, "b_score": 0, "a_stamina": 119, "b_stamina": 120, "thinking": "宝箱距离7步最近，优先前往宝箱。路径第一步是down。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 0, "type": "b", "action": "down", "a_pos": [2, 1], "b_pos": [2, 11], "a_score": 0, "b_score": 0, "a_stamina": 119, "b_stamina": 119, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 1, "type": "a", "action": "down", "a_pos": [3, 1], "b_pos": [2, 11], "a_score": 0, "b_score": 0, "a_stamina": 118, "b_stamina": 119, "thinking": "继续按路径前往宝箱，距离6步，第一步是down。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 1, "type": "b", "action": "down", "a_pos": [3, 1], "b_pos": [3, 11], "a_score": 0, "b_score": 0, "a_stamina": 118, "b_stamina": 118, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 2, "type": "a", "action": "right", "a_pos": [3, 2], "b_pos": [3, 11], "a_score": 0, "b_score": 0, "a_stamina": 117, "b_stamina": 118, "thinking": "宝箱距离5步，路径是right*4然后up，继续按路径走，第一步right。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 2, "type": "b", "action": "left", "a_pos": [3, 2], "b_pos": [3, 10], "a_score": 0, "b_score": 0, "a_stamina": 117, "b_stamina": 117, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 3, "type": "a", "action": "right", "a_pos": [3, 3], "b_pos": [3, 10], "a_score": 0, "b_score": 0, "a_stamina": 116, "b_stamina": 117, "thinking": "宝箱距离4步，路径right*3然后up，继续向右走。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 3, "type": "b", "action": "left", "a_pos": [3, 3], "b_pos": [3, 9], "a_score": 0, "b_score": 0, "a_stamina": 116, "b_stamina": 116, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 4, "type": "a", "action": "right", "a_pos": [3, 4], "b_pos": [3, 9], "a_score": 0, "b_score": 0, "a_stamina": 115, "b_stamina": 116, "thinking": "宝箱距离3步，路径right*2然后up，继续向右走。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 4, "type": "b", "action": "left", "a_pos": [3, 4], "b_pos": [3, 8], "a_score": 0, "b_score": 0, "a_stamina": 115, "b_stamina": 115, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 5, "type": "a", "action": "right", "a_pos": [3, 5], "b_pos": [3, 8], "a_score": 0, "b_score": 0, "a_stamina": 114, "b_stamina": 115, "thinking": "宝箱距离2步，路径right然后up，继续向右走。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "3,7": {"kind": "gem", "color": "G"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}}}, {"turn": 5, "type": "b", "action": "left", "a_pos": [3, 5], "b_pos": [3, 7], "a_score": 0, "b_score": 1, "a_stamina": 114, "b_stamina": 114, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "2,5": {"kind": "chest", "color": null}, "3,5": {"kind": "gem", "color": "G"}}}, {"turn": 6, "type": "a", "action": "up", "a_pos": [2, 5], "b_pos": [3, 7], "a_score": 5, "b_score": 1, "a_stamina": 113, "b_stamina": 114, "thinking": "当前位置有G宝石（steps=0），但更重要的是宝箱只需1步（up），先拿宝箱再说，向上走获取宝箱。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "3,5": {"kind": "gem", "color": "G"}, "11,5": {"kind": "chest", "color": null}}}, {"turn": 6, "type": "b", "action": "down", "a_pos": [2, 5], "b_pos": [4, 7], "a_score": 5, "b_score": 1, "a_stamina": 113, "b_stamina": 113, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "3,5": {"kind": "gem", "color": "G"}, "11,5": {"kind": "chest", "color": null}}}, {"turn": 7, "type": "a", "action": "down", "a_pos": [3, 5], "b_pos": [4, 7], "a_score": 6, "b_score": 1, "a_stamina": 112, "b_stamina": 113, "thinking": "宝箱已拿到得5分，G宝石就在下方1步，顺路拿了再考虑P宝石和出口。先向下拿G宝石。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "11,5": {"kind": "chest", "color": null}, "3,11": {"kind": "gem", "color": "G"}}}, {"turn": 7, "type": "b", "action": "up", "a_pos": [3, 5], "b_pos": [3, 7], "a_score": 6, "b_score": 1, "a_stamina": 112, "b_stamina": 112, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "11,5": {"kind": "chest", "color": null}, "3,11": {"kind": "gem", "color": "G"}}}, {"turn": 8, "type": "a", "action": "up", "a_pos": [2, 5], "b_pos": [3, 7], "a_score": 6, "b_score": 1, "a_stamina": 111, "b_stamina": 112, "thinking": "已有G宝石，P宝石距离4步，拿到后有2颗宝石，出口26步。体力112步，拿P后去出口约30步，完全够。先去拿P宝石，第一步up。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "11,5": {"kind": "chest", "color": null}, "3,11": {"kind": "gem", "color": "G"}}}, {"turn": 8, "type": "b", "action": "right", "a_pos": [2, 5], "b_pos": [3, 8], "a_score": 6, "b_score": 1, "a_stamina": 111, "b_stamina": 111, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "11,5": {"kind": "chest", "color": null}, "3,11": {"kind": "gem", "color": "G"}}}, {"turn": 9, "type": "a", "action": "up", "a_pos": [1, 5], "b_pos": [3, 8], "a_score": 6, "b_score": 1, "a_stamina": 110, "b_stamina": 111, "thinking": "P宝石距离3步，路径up->left->left，继续向上走。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "11,5": {"kind": "chest", "color": null}, "3,11": {"kind": "gem", "color": "G"}}}, {"turn": 9, "type": "b", "action": "right", "a_pos": [1, 5], "b_pos": [3, 9], "a_score": 6, "b_score": 1, "a_stamina": 110, "b_stamina": 110, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "11,5": {"kind": "chest", "color": null}, "3,11": {"kind": "gem", "color": "G"}}}, {"turn": 10, "type": "a", "action": "left", "a_pos": [1, 4], "b_pos": [3, 9], "a_score": 6, "b_score": 1, "a_stamina": 109, "b_stamina": 110, "thinking": "P宝石距离2步，路径left->left，向左走拿P宝石。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "11,5": {"kind": "chest", "color": null}, "3,11": {"kind": "gem", "color": "G"}}}, {"turn": 10, "type": "b", "action": "right", "a_pos": [1, 4], "b_pos": [3, 10], "a_score": 6, "b_score": 1, "a_stamina": 109, "b_stamina": 109, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "1,3": {"kind": "gem", "color": "P"}, "11,5": {"kind": "chest", "color": null}, "3,11": {"kind": "gem", "color": "G"}}}, {"turn": 11, "type": "a", "action": "left", "a_pos": [1, 3], "b_pos": [3, 10], "a_score": 7, "b_score": 1, "a_stamina": 108, "b_stamina": 109, "thinking": "P宝石就在左边1步，向左拿P宝石。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "3,11": {"kind": "gem", "color": "G"}, "3,8": {"kind": "gem", "color": "P"}}}, {"turn": 11, "type": "b", "action": "right", "a_pos": [1, 3], "b_pos": [3, 11], "a_score": 7, "b_score": 2, "a_stamina": 108, "b_stamina": 108, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "3,8": {"kind": "gem", "color": "P"}, "5,5": {"kind": "gem", "color": "G"}}}, {"turn": 12, "type": "a", "action": "right", "a_pos": [1, 4], "b_pos": [3, 11], "a_score": 7, "b_score": 2, "a_stamina": 107, "b_stamina": 108, "thinking": "已有G和P两颗宝石，出口距离26步，体力108步足够。地图上有G宝石在(5,5)位置，但路径分析显示出口26步，去出口最优。直接向右走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "3,8": {"kind": "gem", "color": "P"}, "5,5": {"kind": "gem", "color": "G"}}}, {"turn": 12, "type": "b", "action": "left", "a_pos": [1, 4], "b_pos": [3, 10], "a_score": 7, "b_score": 2, "a_stamina": 107, "b_stamina": 107, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "3,8": {"kind": "gem", "color": "P"}, "5,5": {"kind": "gem", "color": "G"}}}, {"turn": 13, "type": "a", "action": "right", "a_pos": [1, 5], "b_pos": [3, 10], "a_score": 7, "b_score": 2, "a_stamina": 106, "b_stamina": 107, "thinking": "出口距离25步，体力107步，继续向右朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "3,8": {"kind": "gem", "color": "P"}, "5,5": {"kind": "gem", "color": "G"}}}, {"turn": 13, "type": "b", "action": "left", "a_pos": [1, 5], "b_pos": [3, 9], "a_score": 7, "b_score": 2, "a_stamina": 106, "b_stamina": 106, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "3,8": {"kind": "gem", "color": "P"}, "5,5": {"kind": "gem", "color": "G"}}}, {"turn": 14, "type": "a", "action": "right", "a_pos": [1, 6], "b_pos": [3, 9], "a_score": 7, "b_score": 2, "a_stamina": 105, "b_stamina": 106, "thinking": "出口距离24步，体力106步，继续向右朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "3,8": {"kind": "gem", "color": "P"}, "5,5": {"kind": "gem", "color": "G"}}}, {"turn": 14, "type": "b", "action": "left", "a_pos": [1, 6], "b_pos": [3, 8], "a_score": 7, "b_score": 3, "a_stamina": 105, "b_stamina": 105, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 15, "type": "a", "action": "right", "a_pos": [1, 7], "b_pos": [3, 8], "a_score": 7, "b_score": 3, "a_stamina": 104, "b_stamina": 105, "thinking": "出口距离23步，体力105步，Y宝石和P宝石顺路，但出口最优先。继续向右走。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 15, "type": "b", "action": "left", "a_pos": [1, 7], "b_pos": [3, 7], "a_score": 7, "b_score": 3, "a_stamina": 104, "b_stamina": 104, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 16, "type": "a", "action": "right", "a_pos": [1, 8], "b_pos": [3, 7], "a_score": 7, "b_score": 3, "a_stamina": 103, "b_stamina": 104, "thinking": "出口距离22步，体力104步，继续向右走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 16, "type": "b", "action": "down", "a_pos": [1, 8], "b_pos": [4, 7], "a_score": 7, "b_score": 3, "a_stamina": 103, "b_stamina": 103, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 17, "type": "a", "action": "right", "a_pos": [1, 9], "b_pos": [4, 7], "a_score": 7, "b_score": 3, "a_stamina": 102, "b_stamina": 103, "thinking": "出口距离21步，体力103步，继续向右走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 17, "type": "b", "action": "down", "a_pos": [1, 9], "b_pos": [5, 7], "a_score": 7, "b_score": 3, "a_stamina": 102, "b_stamina": 102, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 18, "type": "a", "action": "right", "a_pos": [1, 10], "b_pos": [5, 7], "a_score": 7, "b_score": 3, "a_stamina": 101, "b_stamina": 102, "thinking": "出口距离20步，体力102步，继续向右走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 18, "type": "b", "action": "right", "a_pos": [1, 10], "b_pos": [5, 8], "a_score": 7, "b_score": 3, "a_stamina": 101, "b_stamina": 101, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 19, "type": "a", "action": "right", "a_pos": [1, 11], "b_pos": [5, 8], "a_score": 7, "b_score": 3, "a_stamina": 100, "b_stamina": 101, "thinking": "出口距离19步，体力101步，继续向右走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 19, "type": "b", "action": "right", "a_pos": [1, 11], "b_pos": [5, 9], "a_score": 7, "b_score": 3, "a_stamina": 100, "b_stamina": 100, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 20, "type": "a", "action": "down", "a_pos": [2, 11], "b_pos": [5, 9], "a_score": 7, "b_score": 3, "a_stamina": 99, "b_stamina": 100, "thinking": "出口距离18步，体力100步，按路径向下走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 20, "type": "b", "action": "down", "a_pos": [2, 11], "b_pos": [6, 9], "a_score": 7, "b_score": 3, "a_stamina": 99, "b_stamina": 99, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 21, "type": "a", "action": "down", "a_pos": [3, 11], "b_pos": [6, 9], "a_score": 7, "b_score": 3, "a_stamina": 98, "b_stamina": 99, "thinking": "出口距离17步，体力99步，按路径继续向下走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 21, "type": "b", "action": "down", "a_pos": [3, 11], "b_pos": [7, 9], "a_score": 7, "b_score": 3, "a_stamina": 98, "b_stamina": 98, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 22, "type": "a", "action": "left", "a_pos": [3, 10], "b_pos": [7, 9], "a_score": 7, "b_score": 3, "a_stamina": 97, "b_stamina": 98, "thinking": "出口距离16步，体力98步，按路径向左走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 22, "type": "b", "action": "down", "a_pos": [3, 10], "b_pos": [8, 9], "a_score": 7, "b_score": 3, "a_stamina": 97, "b_stamina": 97, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 23, "type": "a", "action": "left", "a_pos": [3, 9], "b_pos": [8, 9], "a_score": 7, "b_score": 3, "a_stamina": 96, "b_stamina": 97, "thinking": "出口距离15步，体力97步，按路径继续向左走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 23, "type": "b", "action": "down", "a_pos": [3, 9], "b_pos": [9, 9], "a_score": 7, "b_score": 3, "a_stamina": 96, "b_stamina": 96, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 24, "type": "a", "action": "left", "a_pos": [3, 8], "b_pos": [9, 9], "a_score": 7, "b_score": 3, "a_stamina": 95, "b_stamina": 96, "thinking": "出口距离14步，体力96步，按路径继续向左走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 24, "type": "b", "action": "right", "a_pos": [3, 8], "b_pos": [9, 10], "a_score": 7, "b_score": 3, "a_stamina": 95, "b_stamina": 95, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 25, "type": "a", "action": "left", "a_pos": [3, 7], "b_pos": [9, 10], "a_score": 7, "b_score": 3, "a_stamina": 94, "b_stamina": 95, "thinking": "出口距离13步，体力95步，按路径继续向左走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "9,11": {"kind": "gem", "color": "Y"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}}}, {"turn": 25, "type": "b", "action": "right", "a_pos": [3, 7], "b_pos": [9, 11], "a_score": 7, "b_score": 4, "a_stamina": 94, "b_stamina": 94, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}, "8,5": {"kind": "gem", "color": "Y"}}}, {"turn": 26, "type": "a", "action": "down", "a_pos": [4, 7], "b_pos": [9, 11], "a_score": 7, "b_score": 4, "a_stamina": 93, "b_stamina": 94, "thinking": "出口距离12步，体力94步，按路径向下走朝出口方向前进，顺路可拾取P宝石。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "10,11": {"kind": "gem", "color": "P"}, "8,5": {"kind": "gem", "color": "Y"}}}, {"turn": 26, "type": "b", "action": "down", "a_pos": [4, 7], "b_pos": [10, 11], "a_score": 7, "b_score": 5, "a_stamina": 93, "b_stamina": 93, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 27, "type": "a", "action": "down", "a_pos": [5, 7], "b_pos": [10, 11], "a_score": 7, "b_score": 5, "a_stamina": 92, "b_stamina": 93, "thinking": "出口距离11步，体力93步，按路径向下走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 27, "type": "b", "action": "down", "a_pos": [5, 7], "b_pos": [11, 11], "a_score": 7, "b_score": 25, "a_stamina": 92, "b_stamina": 92, "thinking": "", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 28, "type": "a", "action": "right", "a_pos": [5, 8], "b_pos": [11, 11], "a_score": 7, "b_score": 25, "a_stamina": 91, "b_stamina": 92, "thinking": "出口距离10步，体力92步，按路径向右走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 29, "type": "a", "action": "right", "a_pos": [5, 9], "b_pos": [11, 11], "a_score": 7, "b_score": 25, "a_stamina": 90, "b_stamina": 92, "thinking": "出口距离9步，体力91步，按路径继续向右走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 30, "type": "a", "action": "down", "a_pos": [6, 9], "b_pos": [11, 11], "a_score": 7, "b_score": 25, "a_stamina": 89, "b_stamina": 92, "thinking": "出口距离8步，体力90步，按路径向下走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 31, "type": "a", "action": "down", "a_pos": [7, 9], "b_pos": [11, 11], "a_score": 7, "b_score": 25, "a_stamina": 88, "b_stamina": 92, "thinking": "出口距离7步，体力89步，按路径向下走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 32, "type": "a", "action": "down", "a_pos": [8, 9], "b_pos": [11, 11], "a_score": 7, "b_score": 25, "a_stamina": 87, "b_stamina": 92, "thinking": "出口距离6步，体力88步，按路径向下走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 33, "type": "a", "action": "down", "a_pos": [9, 9], "b_pos": [11, 11], "a_score": 7, "b_score": 25, "a_stamina": 86, "b_stamina": 92, "thinking": "出口距离5步，体力87步，按路径向下走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 34, "type": "a", "action": "right", "a_pos": [9, 10], "b_pos": [11, 11], "a_score": 7, "b_score": 25, "a_stamina": 85, "b_stamina": 92, "thinking": "出口距离4步，体力86步，按路径向右走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 35, "type": "a", "action": "right", "a_pos": [9, 11], "b_pos": [11, 11], "a_score": 7, "b_score": 25, "a_stamina": 84, "b_stamina": 92, "thinking": "出口距离3步，体力85步，按路径向右走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 36, "type": "a", "action": "down", "a_pos": [10, 11], "b_pos": [11, 11], "a_score": 7, "b_score": 25, "a_stamina": 83, "b_stamina": 92, "thinking": "出口距离2步，体力84步，按路径向下走朝出口方向前进。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}, {"turn": 37, "type": "a", "action": "down", "a_pos": [11, 11], "b_pos": [11, 11], "a_score": 27, "b_score": 25, "a_stamina": 82, "b_stamina": 92, "thinking": "出口就在下方1步，立即向下走到达出口获得+20分。", "objects": {"5,1": {"kind": "gem", "color": "R"}, "9,4": {"kind": "gem", "color": "B"}, "11,5": {"kind": "chest", "color": null}, "5,5": {"kind": "gem", "color": "G"}, "8,5": {"kind": "gem", "color": "Y"}, "11,3": {"kind": "gem", "color": "P"}}}], "final_a": 27, "final_b": 25};
+const FRAMES = REPLAY.frames;
+const GRID = REPLAY.map;
+const W = REPLAY.width, H = REPLAY.height;
+const EXIT = REPLAY.exit;
+
+let cur = 0, playing = false, speed = 800, timer = null;
+
+const GEM_COLORS = {
+  R: {cls:'cell-gem-R', icon:'💎', label:'R'},
+  B: {cls:'cell-gem-B', icon:'💎', label:'B'},
+  G: {cls:'cell-gem-G', icon:'💎', label:'G'},
+  Y: {cls:'cell-gem-Y', icon:'💎', label:'Y'},
+  P: {cls:'cell-gem-P', icon:'💎', label:'P'},
+};
+
+function buildMaze() {
+  const el = document.getElementById('maze');
+  el.style.gridTemplateColumns = `repeat(${W}, 32px)`;
+  for (let r=0;r<H;r++) for (let c=0;c<W;c++) {
+    const d = document.createElement('div');
+    d.id = `cell-${r}-${c}`;
+    d.className = 'cell';
+    el.appendChild(d);
+  }
+}
+
+function renderFrame(idx) {
+  const f = FRAMES[idx];
+  // reset all cells
+  for (let r=0;r<H;r++) for (let c=0;c<W;c++) {
+    const d = document.getElementById(`cell-${r}-${c}`);
+    const isWall = GRID[r][c] === '#';
+    const isExit = EXIT && EXIT[0]===r && EXIT[1]===c;
+    d.className = 'cell ' + (isWall ? 'cell-wall' : isExit ? 'cell-exit' : 'cell-floor');
+    d.textContent = isWall ? '' : (isExit ? 'E' : '');
+  }
+  // objects
+  if (f.objects) {
+    Object.entries(f.objects).forEach(([key, obj]) => {
+      const [r,c] = key.split(',').map(Number);
+      const d = document.getElementById(`cell-${r}-${c}`);
+      if (!d) return;
+      if (obj.kind === 'gem') {
+        const gc = GEM_COLORS[obj.color] || {cls:'cell-gem-G',label:'?'};
+        d.className = 'cell ' + gc.cls;
+        d.textContent = obj.color;
+      } else if (obj.kind === 'chest') {
+        d.className = 'cell cell-chest';
+        d.textContent = '🎁';
+      }
+    });
+  }
+  // players
+  const [ar, ac] = f.a_pos, [br, bc] = f.b_pos;
+  const isSame = ar===br && ac===bc;
+  if (isSame) {
+    const d = document.getElementById(`cell-${ar}-${ac}`);
+    d.className = 'cell cell-ab'; d.textContent = '⚡';
+  } else {
+    const da = document.getElementById(`cell-${ar}-${ac}`);
+    da.className = 'cell cell-a'; da.textContent = '🤖';
+    const db = document.getElementById(`cell-${br}-${bc}`);
+    db.className = 'cell cell-b'; db.textContent = '🔧';
+  }
+
+  // scores
+  document.getElementById('score-a').textContent = f.a_score;
+  document.getElementById('score-b').textContent = f.b_score;
+  const stA = f.a_stamina, stB = f.b_stamina;
+  document.getElementById('meta-a').textContent = `体力 ${stA} | 位置(${ar},${ac})`;
+  document.getElementById('meta-b').textContent = `体力 ${stB} | 位置(${br},${bc})`;
+  document.getElementById('stamp-a').style.width = (stA/120*100)+'%';
+  document.getElementById('stamp-b').style.width = (stB/120*100)+'%';
+
+  // highlight active card
+  document.getElementById('card-a').className = 'score-card sc-a' + (f.type==='a' ? ' active-a' : '');
+  document.getElementById('card-b').className = 'score-card sc-b' + (f.type==='b' ? ' active-b' : '');
+
+  // CoT
+  if (f.type === 'a' && f.thinking) {
+    document.getElementById('cot-text').textContent = f.thinking;
+    document.getElementById('cot-action').innerHTML = `决策: <span>→ ${(f.action||'').toUpperCase()}</span>`;
+  } else if (f.type === 'b') {
+    document.getElementById('cot-action').innerHTML = `规则对手: <span>→ ${(f.action||'').toUpperCase()}</span>`;
+  }
+
+  // progress
+  const prog = document.getElementById('progress');
+  prog.max = FRAMES.length - 1;
+  prog.value = idx;
+  document.getElementById('frame-info').textContent = `帧 ${idx+1} / ${FRAMES.length}  (T${f.turn >= 0 ? f.turn : '开局'} ${f.type === 'a' ? '🤖claude' : f.type === 'b' ? '🔧规则' : '初始'})`;
+
+  // highlight timeline
+  document.querySelectorAll('.tl-item').forEach((el,i) => {
+    el.classList.toggle('current', i === idx);
+    if (i === idx) el.scrollIntoView({block:'nearest', behavior:'smooth'});
+  });
+
+  // winner banner at end
+  if (idx === FRAMES.length - 1) {
+    const fa = REPLAY.final_a, fb = REPLAY.final_b;
+    document.getElementById('card-a').className = 'score-card sc-a' + (fa >= fb ? ' winner' : '');
+    document.getElementById('card-b').className = 'score-card sc-b' + (fb >= fa ? ' winner' : '');
+    document.getElementById('cot-text').textContent = fa > fb
+      ? `🥇 claude 胜利！最终 ${fa} vs ${fb} 分` 
+      : fb > fa ? `🥇 规则对手胜！最终 ${fa} vs ${fb} 分`
+      : `🤝 平局！${fa} vs ${fb} 分`;
+    document.getElementById('cot-action').textContent = '';
+  }
+}
+
+function buildTimeline() {
+  const el = document.getElementById('timeline');
+  FRAMES.forEach((f, i) => {
+    const d = document.createElement('div');
+    d.className = 'tl-item';
+    d.onclick = () => { cur = i; renderFrame(i); };
+    const isA = f.type === 'a';
+    const isB = f.type === 'b';
+    const scoreChange = i > 0 ? (isA ? f.a_score - FRAMES[i-1].a_score : isB ? f.b_score - FRAMES[i-1].b_score : 0) : 0;
+    d.innerHTML = `
+      <span class="tl-agent ${isA ? 'tl-a' : isB ? 'tl-b' : ''}">${isA ? '🤖' : isB ? '🔧' : '🗺️'}</span>
+      <span class="tl-action">${f.action ? f.action.toUpperCase() : 'INIT'}</span>
+      <span class="tl-thinking">${f.thinking || (isB ? '规则寻路' : '初始状态')}</span>
+      <span class="tl-score">${scoreChange > 0 ? '+'+scoreChange : ''}</span>
+    `;
+    el.appendChild(d);
+  });
+}
+
+function togglePlay() {
+  playing = !playing;
+  document.getElementById('btnPlay').textContent = playing ? '⏸ 暂停' : '▶ 播放';
+  if (playing) {
+    if (cur >= FRAMES.length - 1) cur = 0;
+    tick();
+  } else {
+    clearTimeout(timer);
+  }
+}
+function tick() {
+  if (!playing) return;
+  if (cur >= FRAMES.length - 1) { playing = false; document.getElementById('btnPlay').textContent = '▶ 重播'; return; }
+  cur++;
+  renderFrame(cur);
+  timer = setTimeout(tick, speed);
+}
+function stepForward() { if (cur < FRAMES.length-1) { cur++; renderFrame(cur); } }
+function stepBack()    { if (cur > 0) { cur--; renderFrame(cur); } }
+function resetReplay() { clearTimeout(timer); playing = false; cur = 0; renderFrame(0); document.getElementById('btnPlay').textContent = '▶ 播放'; }
+function seekTo(v)     { cur = parseInt(v); renderFrame(cur); }
+function setSpeed(ms) {
+  speed = ms;
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  if (playing) { clearTimeout(timer); tick(); }
+}
+
+buildMaze();
+buildTimeline();
+renderFrame(0);
+</script>
+</body>
+</html>

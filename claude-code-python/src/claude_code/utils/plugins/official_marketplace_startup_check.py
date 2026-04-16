@@ -1,0 +1,1 @@
+# stub officialMarketplaceStartupCheck.ts

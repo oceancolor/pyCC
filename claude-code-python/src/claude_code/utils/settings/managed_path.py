@@ -1,0 +1,1 @@
+# stub managedPath.ts

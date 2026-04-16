@@ -1,0 +1,1 @@
+# stub registerFrontmatterHooks.ts

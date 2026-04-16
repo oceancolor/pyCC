@@ -1,0 +1,1 @@
+# stub ShellSnapshot.ts

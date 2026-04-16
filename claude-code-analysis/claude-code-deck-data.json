@@ -1,0 +1,37 @@
+{
+  "meta": {
+    "brand_name": "Claude Code",
+    "partner_name": "源码深度解析",
+    "title": "Claude Code 源码架构深度解析",
+    "subtitle": "6万行 TypeScript · 20个核心设计决策 · 完整系统架构",
+    "date": "2026.04.05"
+  },
+  "slides": [
+    {"type": "cover"},
+    {"type": "agenda"},
+    {"type": "section", "part": "PART 01", "title": "整体架构全景", "desc": "从 main.tsx 到 queryLoop 的完整启动链"},
+    {"type": "arch"},
+    {"type": "startup"},
+    {"type": "section", "part": "PART 02", "title": "查询引擎与流式API", "desc": "QueryEngine · queryLoop · queryModelWithStreaming"},
+    {"type": "query_engine"},
+    {"type": "stream"},
+    {"type": "cache"},
+    {"type": "section", "part": "PART 03", "title": "压缩与记忆体系", "desc": "三级压缩 · Session Memory · Auto Memory"},
+    {"type": "compact"},
+    {"type": "memory"},
+    {"type": "auto_memory"},
+    {"type": "section", "part": "PART 04", "title": "多Agent协作体系", "desc": "forkedAgent · AgentTool · Swarm · Coordinator"},
+    {"type": "agent_arch"},
+    {"type": "swarm"},
+    {"type": "coordinator"},
+    {"type": "section", "part": "PART 05", "title": "权限与安全体系", "desc": "7种权限模式 · 23道Bash安全关卡 · AI分类器"},
+    {"type": "permission"},
+    {"type": "bash_security"},
+    {"type": "section", "part": "PART 06", "title": "MCP · Hooks · SDK", "desc": "MCP协议栈 · 27种Hook事件 · SDK控制协议"},
+    {"type": "mcp"},
+    {"type": "hooks"},
+    {"type": "section", "part": "PART 07", "title": "设计哲学总结", "desc": "20个核心决策 · 一句话归纳"},
+    {"type": "decisions"},
+    {"type": "philosophy"}
+  ]
+}

@@ -1,0 +1,24 @@
+[package]
+name = "claude-utils"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+claude-types = { workspace = true }
+claude-constants = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+reqwest = { workspace = true }
+regex = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+semver = { workspace = true }
+tracing = { workspace = true }
+colored = { workspace = true }
+once_cell = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }

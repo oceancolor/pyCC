@@ -1,0 +1,45 @@
+{
+  "mcpServers": {
+    "gongfeng": {
+      "url": "https://git.woa.com/api/mcp/mcp",
+      "headers": {
+        "OAUTH-TOKEN": "895df7c2dd0b88650c328bb6c318f9fa",
+        "X-USERNAME": "benjamin"
+      }
+    },
+    "isearch": {
+      "url": "https://prod.mcp.it.woa.com/app_iwiki_mcp/mcp3",
+      "headers": {
+        "Authorization": "Bearer tai_pat_hEWza5O5oVnPHU8MmOb3OzTJjqb6hQB6JDu8WAn5kkI.4DPSlxUQYneCAe2-z5MDDCdTFR6N24Jz4RtMVMKbhAc"
+      }
+    },
+    "iwiki": {
+      "url": "https://prod.mcp.it.woa.com/app_iwiki_mcp/mcp3",
+      "headers": {
+        "Authorization": "Bearer tai_pat_hEWza5O5oVnPHU8MmOb3OzTJjqb6hQB6JDu8WAn5kkI.4DPSlxUQYneCAe2-z5MDDCdTFR6N24Jz4RtMVMKbhAc"
+      }
+    },
+    "tapd": {
+      "url": "http://mcp-idc.tapd.woa.com/mcp/",
+      "headers": {
+        "OAUTH-TOKEN": "895df7c2dd0b88650c328bb6c318f9fa",
+        "X-USERNAME": "benjamin",
+        "X-Tools-Set": "lookup_tapd_tool,lookup_tool_param_schema,proxy_execute_tool",
+        "X-Keep-Links": "true"
+      }
+    },
+    "tencent-docs": {
+      "baseUrl": "https://docs.qq.com/openapi/mcp",
+      "headers": {
+        "Authorization": "52691624c8104659a09d1ab97c2fc98b"
+      }
+    },
+    "lexiang": {
+      "url": "https://mcp.lexiang-app.com/mcp?company_from=csig&preset=meta",
+      "headers": {
+        "Authorization": "Bearer 895df7c2dd0b88650c328bb6c318f9fa"
+      }
+    }
+  },
+  "imports": []
+}

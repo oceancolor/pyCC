@@ -1,0 +1,1 @@
+# stub heredoc.ts

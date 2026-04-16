@@ -1,0 +1,25 @@
+[package]
+name = "claude-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "claude"
+path = "src/main.rs"
+
+[dependencies]
+claude-types = { workspace = true }
+claude-constants = { workspace = true }
+claude-utils = { workspace = true }
+claude-tools = { workspace = true }
+claude-services = { workspace = true }
+claude-commands = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+colored = { workspace = true }

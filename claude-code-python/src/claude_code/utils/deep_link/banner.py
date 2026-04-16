@@ -1,0 +1,1 @@
+# stub banner.ts

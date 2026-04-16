@@ -1,0 +1,1 @@
+# stub chromeNativeHost.ts

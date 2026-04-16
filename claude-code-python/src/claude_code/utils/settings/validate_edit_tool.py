@@ -1,0 +1,1 @@
+# stub validateEditTool.ts

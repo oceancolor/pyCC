@@ -1,0 +1,1 @@
+# stub applySettingsChange.ts

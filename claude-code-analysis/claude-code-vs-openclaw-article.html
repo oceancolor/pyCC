@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>同样是 AI Agent 框架，Claude Code 和 OpenClaw 做了哪些截然不同的选择</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --cc: #f97316;      /* Claude Code 橙色 */
+    --cc-bg: rgba(249,115,22,0.08);
+    --oc: #22d3ee;      /* OpenClaw 青色 */
+    --oc-bg: rgba(34,211,238,0.08);
+    --both: #a78bfa;    /* 共同点 紫色 */
+    --both-bg: rgba(167,139,250,0.08);
+    --green: #3fb950;
+    --red: #ff7b72;
+    --yellow: #ffa657;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    font-size: 16px;
+  }
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+  }
+  .sidebar-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar nav a {
+    display: block;
+    padding: 5px 8px;
+    font-size: 13px;
+    color: var(--text2);
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+    line-height: 1.4;
+  }
+  .sidebar nav a:hover { background: var(--bg3); color: var(--text); }
+  .sidebar nav a.active { background: var(--bg3); color: var(--both); }
+  .sidebar nav a.section { font-weight: 600; color: var(--text); margin-top: 8px; }
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .main { flex: 1; max-width: 900px; padding: 60px 48px; }
+  .hero {
+    margin-bottom: 56px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-tag {
+    display: inline-block;
+    background: linear-gradient(135deg, rgba(249,115,22,0.15), rgba(34,211,238,0.15));
+    border: 1px solid var(--border);
+    color: var(--both);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    letter-spacing: 0.04em;
+  }
+  .hero h1 {
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.25;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, var(--cc) 0%, var(--both) 50%, var(--oc) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-meta { display: flex; gap: 24px; flex-wrap: wrap; }
+  .hero-meta span { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+  .hero-meta span::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--both); display: inline-block; }
+  section { margin-bottom: 64px; }
+  h2 {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--both);
+    flex-shrink: 0;
+  }
+  h3 { font-size: 18px; font-weight: 600; margin: 28px 0 14px; color: #79c0ff; }
+  h4 { font-size: 15px; font-weight: 600; margin: 20px 0 10px; color: var(--both); }
+  p { margin-bottom: 16px; color: #c9d1d9; }
+  pre {
+    margin: 20px 0;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  pre code.hljs { padding: 20px 24px; font-size: 13px; line-height: 1.65; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  code:not(pre code) {
+    background: var(--bg3);
+    color: #d2a8ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  /* VS layout */
+  .vs-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .vs-box {
+    background: var(--bg2);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid var(--border);
+  }
+  .vs-box.cc { border-top: 3px solid var(--cc); }
+  .vs-box.oc { border-top: 3px solid var(--oc); }
+  .vs-box.both { border-top: 3px solid var(--both); }
+  .vs-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  .vs-label.cc { color: var(--cc); }
+  .vs-label.oc { color: var(--oc); }
+  .vs-label.both { color: var(--both); }
+  .vs-box p { font-size: 14px; margin: 0; color: #c9d1d9; }
+  .vs-box ul { font-size: 14px; padding-left: 18px; margin: 0; }
+  .vs-box ul li { margin-bottom: 6px; color: #c9d1d9; }
+  /* Big compare table */
+  .table-wrap { overflow-x: auto; margin: 20px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    background: var(--bg3);
+    color: var(--text2);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th.cc { color: var(--cc); }
+  th.oc { color: var(--oc); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: #c9d1d9; vertical-align: top; }
+  td:first-child { font-weight: 500; color: var(--text2); width: 180px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  /* Insight boxes */
+  .insight {
+    border-left: 3px solid var(--both);
+    background: var(--both-bg);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .insight-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--both); margin-bottom: 8px; }
+  .cc-box {
+    border-left: 3px solid var(--cc);
+    background: var(--cc-bg);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .cc-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--cc); margin-bottom: 8px; }
+  .oc-box {
+    border-left: 3px solid var(--oc);
+    background: var(--oc-bg);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .oc-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--oc); margin-bottom: 8px; }
+  ul, ol { padding-left: 24px; margin-bottom: 16px; }
+  li { margin-bottom: 8px; color: #c9d1d9; }
+  li strong { color: var(--text); }
+  .summary-box {
+    background: linear-gradient(135deg, var(--cc-bg), var(--oc-bg));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin: 40px 0;
+  }
+  .summary-box h3 { margin-top: 0; color: var(--both); font-size: 15px; margin-bottom: 12px; }
+  .summary-box p { font-size: 15px; margin: 0; color: var(--text); line-height: 1.7; }
+  /* Trait cards */
+  .trait-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+  .trait-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .trait-item .t-source { font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
+  .trait-item .t-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .trait-item .t-desc { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { padding: 32px 20px; }
+    .hero h1 { font-size: 24px; }
+    .vs-row { grid-template-columns: 1fr; }
+    .trait-grid { grid-template-columns: 1fr; }
+  }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-title">目录</div>
+    <nav>
+      <a href="#positioning" class="section">一、定位差异</a>
+      <a href="#core-loop">二、核心对话循环</a>
+      <a href="#state">三、状态管理</a>
+      <a href="#auth">四、认证与成本</a>
+      <a href="#memory">五、记忆体系</a>
+      <a href="#multiagent">六、多 Agent</a>
+      <a href="#security">七、安全体系</a>
+      <a href="#hooks">八、扩展机制</a>
+      <a href="#philosophy">九、工程哲学对比</a>
+      <a href="#learn">十、互相借鉴什么</a>
+      <a href="#conclusion">结论</a>
+    </nav>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--cc)"></span>Claude Code</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--oc)"></span>OpenClaw</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="hero">
+      <span class="hero-tag">深度对比分析</span>
+      <h1>同样是 AI Agent 框架，<br>Claude Code 和 OpenClaw 做了哪些截然不同的选择</h1>
+      <div class="hero-meta">
+        <span>作者：干活验证虾 × Benjamin</span>
+        <span>日期：2026.04.06</span>
+        <span>分析基于两份完整源码</span>
+      </div>
+    </div>
+
+    <p>Claude Code（约 6 万行 TypeScript）和 OpenClaw（约 46 万行 TypeScript）都是 AI Agent 框架，都处理用户输入、调用 LLM、执行工具。但它们的工程哲学差异之大，几乎让人觉得是在解决完全不同的问题。</p>
+    <p>这篇文章不做简单的功能罗列，而是挖掘每个设计差异背后的根本原因：<strong>是什么样的问题意识，导致了这些截然不同的选择？</strong></p>
+
+    <!-- 一、定位差异 -->
+    <section id="positioning">
+      <h2><span class="num">一</span>定位差异：起点决定一切</h2>
+      <p>两个框架的所有设计差异，都可以追溯到一个根本的定位差异：</p>
+
+      <div class="vs-row">
+        <div class="vs-box cc">
+          <div class="vs-label cc">Claude Code</div>
+          <p><strong>为开发者个人设计的 CLI 工具</strong></p>
+          <ul style="margin-top:10px">
+            <li>用户：一个人，坐在终端前</li>
+            <li>生命周期：短会话，每次对话新进程</li>
+            <li>使用场景：代码编写、调试、重构</li>
+            <li>交互方式：CLI + VS Code Extension</li>
+            <li>并发：同一时刻一个用户，一个任务</li>
+          </ul>
+        </div>
+        <div class="vs-box oc">
+          <div class="vs-label oc">OpenClaw</div>
+          <p><strong>为多用户多渠道设计的常驻服务</strong></p>
+          <ul style="margin-top:10px">
+            <li>用户：多人，通过各种 IM 工具</li>
+            <li>生命周期：常驻 daemon，单进程多 session</li>
+            <li>使用场景：个人助手、工作流自动化、群组 Bot</li>
+            <li>交互方式：21+ 渠道（Telegram/Discord/微信等）</li>
+            <li>并发：多 session 并发，需要隔离</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>这个定位差异导致了一个根本性的架构选择：Claude Code 是「无状态的工具」，OpenClaw 是「有状态的服务」。前者每次启动都是全新的，后者需要管理连接池、session 状态、定时任务……</p>
+
+      <div class="insight">
+        <div class="insight-label">关键洞察</div>
+        <p><strong>定位不同，「好的设计」的定义也不同。</strong>Claude Code 的「全量替换 State」在多 session 常驻服务里是奢侈的（每个 session 都分配新对象，GC 压力巨大）；OpenClaw 的「常驻连接池」在 CLI 工具里是多余的（用完就关，不需要复用）。评估一个设计决策，必须先问「这是在解决什么问题」。</p>
+      </div>
+    </section>
+
+    <!-- 二、核心对话循环 -->
+    <section id="core-loop">
+      <h2><span class="num">二</span>核心对话循环：自研 vs 依赖</h2>
+
+      <div class="vs-row">
+        <div class="vs-box cc">
+          <div class="vs-label cc">Claude Code：queryLoop（自研）</div>
+          <ul>
+            <li>完全自研，约 1729 行</li>
+            <li>11 个明确的执行阶段</li>
+            <li>直接操控 Anthropic API</li>
+            <li>自实现 O(n) 流式解析（绕过 SDK 的 O(n²)）</li>
+            <li>三级压缩（Time-Based / Cached MC / LLM 摘要）</li>
+          </ul>
+        </div>
+        <div class="vs-box oc">
+          <div class="vs-label oc">OpenClaw：pi-embedded-runner（依赖 pi）</div>
+          <ul>
+            <li>基于 ACP harness，约 2098 行</li>
+            <li>通过 pi.runTurn() 驱动</li>
+            <li>支持多种 ACP harness（Claude Code/Codex/Cursor 等）</li>
+            <li>eventGate 防超时污染</li>
+            <li>failover 两次机会重试</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>这个差异说明了什么？</h3>
+      <p>Claude Code 选择自研对话循环，是因为它需要对每个细节有完全的控制权——特别是成本控制。自实现 O(n) 流式解析、三级压缩体系、Prompt Cache 保护，这些都需要在对话循环的每个步骤精确插入成本优化逻辑。用 SDK 的话，这些细节就不在控制之内了。</p>
+      <p>OpenClaw 选择依赖 ACP harness，是因为它的定位是「接入各种 AI Agent」，而不是「成为一个 AI Agent」。它的价值在于渠道适配、session 管理、安全审计——不在于对话循环本身。通过 ACP 协议，用户可以把 Claude Code、Codex、Cursor 等任何 ACP 兼容的 harness 接进来。</p>
+
+      <div class="insight">
+        <div class="insight-label">关键洞察</div>
+        <p><strong>「自研 vs 依赖」的选择本质上是「控制权 vs 灵活性」的权衡。</strong>自研得到的是完全控制权（可以做任何优化）；依赖抽象层得到的是灵活性（可以替换底层实现）。Claude Code 不需要替换 LLM，它就是 Claude；OpenClaw 需要接入多种 AI，ACP 抽象是必要的。</p>
+      </div>
+    </section>
+
+    <!-- 三、状态管理 -->
+    <section id="state">
+      <h2><span class="num">三</span>状态管理：不可变 vs 事件驱动</h2>
+
+      <h3>Claude Code：全量替换的不可变状态</h3>
+      <pre><code class="language-typescript">// Claude Code 的 queryLoop 每次 continue 都构建全新的 State 对象
+state = {
+  messages: [...newMessages],       // 新数组，不是 push
+  continueReason: 'next_turn',
+  // 所有字段重新赋值
+}
+continue  // 进入下一轮
+
+// 唯一的例外：
+lastMsg.message.usage = usage  // in-place mutation
+// 原因：transcript write queue 持有对象引用
+// 替换对象会让 queue 丢失最后一条 usage 数据</code></pre>
+
+      <div class="cc-box">
+        <div class="cc-label">Claude Code 的选择</div>
+        <p>全量替换换来三件事：① 可追踪性（每个状态变迁有完整快照）；② 隔离性（上一轮状态不会污染下一轮）；③ 可测试性（每个快照可独立测试）。代价是 GC 压力——对于单用户 CLI 工具，这个代价是值得的。</p>
+      </div>
+
+      <h3>OpenClaw：SessionActorQueue 的串行化隔离</h3>
+      <pre><code class="language-typescript">// OpenClaw 用队列而非状态快照来保证隔离
+withSessionActor(sessionKey, async () => {
+  // 同一 session 的 turn 严格串行
+  // 通过时序隔离实现状态隔离
+  // 而不是通过对象替换
+})
+
+// 多 session 之间完全并发
+// 但同一 session 内部串行，不需要对象复制</code></pre>
+
+      <div class="oc-box">
+        <div class="oc-label">OpenClaw 的选择</div>
+        <p>串行化队列的思路是：与其让每个状态都是独立快照（内存开销大），不如保证同一 session 的操作永远串行（时序保证一致性）。多 session 并发时，各 session 的状态在时序上不会交错，不需要对象复制就能实现隔离。</p>
+      </div>
+
+      <div class="insight">
+        <div class="insight-label">关键洞察</div>
+        <p><strong>两种方式都在解决「状态一致性」问题，但路径不同。</strong>Claude Code 用「不可变对象」——任何时刻的状态都是一个独立快照，不会被意外修改。OpenClaw 用「时序串行」——同一 session 的操作按顺序执行，后一步总是看到前一步的完整结果。前者是「空间隔离」，后者是「时间隔离」。</p>
+      </div>
+    </section>
+
+    <!-- 四、认证与成本 -->
+    <section id="auth">
+      <h2><span class="num">四</span>认证与成本：单账号 vs 多账号轮转</h2>
+
+      <div class="vs-row">
+        <div class="vs-box cc">
+          <div class="vs-label cc">Claude Code：Prompt Cache 精细保护</div>
+          <ul>
+            <li>单用户，单 API key</li>
+            <li>Session 开始时锁定 isCacheEligible</li>
+            <li>防止 mid-session TTL 降级导致 20K token cache bust</li>
+            <li>CacheSafeParams：后台任务 100% 命中 parent cache</li>
+            <li>三级压缩（cheapest-first）控制 API 账单</li>
+            <li>Analytics 100ms 批量 flush</li>
+          </ul>
+        </div>
+        <div class="vs-box oc">
+          <div class="vs-label oc">OpenClaw：Round-Robin 多账号轮转</div>
+          <ul>
+            <li>多用户，多 Profile（oauth/token/api_key）</li>
+            <li>Round-Robin：lastUsed 最旧的先用（不是 lastGood）</li>
+            <li>Cooldown Partition：失败后自动冷却，最快恢复先用</li>
+            <li>配置漂移自动修复（allBaseProfilesMissing）</li>
+            <li>clearExpiredCooldowns 防止 cooldown 永久累积</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>为什么 Claude Code 要精细保护 Prompt Cache？</h3>
+      <p>Claude 的 API 支持 prompt cache：如果请求前 N 个 token 与上次完全相同，可以极低成本复用计算结果。但 cache 是脆弱的——mid-session 换 cache scope 字段，就可能让之前节省的所有 cache 「还回去」（约 20K token 的 bust）。对于重度用户，Prompt Cache 可能是 API 费用的决定性因素。</p>
+      <p>这个设计在 OpenClaw 里不存在——因为 OpenClaw 的 API 调用都通过 ACP harness 转发，成本分摊在各个用户身上，没有单一用户需要精细控制自己的 cache。</p>
+
+      <h3>为什么 OpenClaw 用 Round-Robin 而不是「总用上次成功的」？</h3>
+      <p>这是一个很容易犯的直觉错误：「上次成功的就是最好的，应该优先用」。但在多账号场景下，这等于把所有流量都打到一个账号上，其他账号的配额白白浪费。Round-Robin（总用最久没用过的）确保所有 profile 的使用量趋向均衡，同时如果某个账号 rate limit 了，Cooldown 机制自动把它移到队尾。</p>
+    </section>
+
+    <!-- 五、记忆体系 -->
+    <section id="memory">
+      <h2><span class="num">五</span>记忆体系：Markdown 文件 vs 向量数据库</h2>
+
+      <p>这是两个框架最大的架构差异之一。</p>
+
+      <div class="vs-row">
+        <div class="vs-box cc">
+          <div class="vs-label cc">Claude Code：Markdown 文件 + 三级记忆</div>
+          <ul>
+            <li>Session Memory：10节 Markdown，12K token，session 内</li>
+            <li>Auto Memory：~/.claude/projects/memory/，4种类型，跨 session</li>
+            <li>Team Memory：project/reference 类型可跨用户共享</li>
+            <li>extractMemories：每次 queryLoop 结束 fire-and-forget</li>
+            <li>autoDream：后台「整合」碎片记忆</li>
+            <li>feedback 类型：同时记录「纠正」和「确认」</li>
+          </ul>
+        </div>
+        <div class="vs-box oc">
+          <div class="vs-label oc">OpenClaw：LanceDB + 6种 Embedding Provider</div>
+          <ul>
+            <li>向量数据库（LanceDB），语义相似度检索</li>
+            <li>6种 embedding provider 可选</li>
+            <li>默认本地 GGUF（embeddinggemma-300m，~300MB）</li>
+            <li>Gemini 支持 taskType + outputDimensionality</li>
+            <li>QMD 语义索引（关键词提取 + session 范围控制）</li>
+            <li>auto 选择的负向约束（不假设 Ollama/HF 可用）</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>为什么 Claude Code 用 Markdown 文件？</h3>
+
+      <pre><code class="language-typescript">// Claude Code 的记忆是「人类可读」的
+// 路径：~/.claude/projects/<hash>/memory/
+// 格式：Markdown，10节，12K token 上限
+
+// extractMemories 提取的4种类型
+type MemoryType = 'user' | 'feedback' | 'project' | 'reference'
+
+// feedback 的独特设计
+// 同时记录「纠正」（stop doing X）和「确认」（keep doing that）
+// 大多数 AI 系统只学失败，不学成功</code></pre>
+
+      <div class="cc-box">
+        <div class="cc-label">Claude Code 的选择逻辑</div>
+        <p>Markdown 文件的优势是「人类可读、可编辑」。用户可以直接打开 memory 文件查看和修改 AI 的记忆，不需要任何工具。而且 Markdown 格式可以直接放进 prompt，不需要额外的检索步骤——对于单用户场景，这比向量检索更简单直接。</p>
+      </div>
+
+      <h3>为什么 OpenClaw 用向量数据库？</h3>
+      <p>向量数据库的优势是「语义相似度检索」：用户说「上次我们讨论的那个项目」，系统可以根据语义找到最相关的记忆，即使措辞完全不同。</p>
+      <p>对于多用户、多 session 的 OpenClaw，记忆库会随着使用积累变得很大。Markdown 文件方案（把所有记忆都放进 prompt）在记忆量大了之后会超出 context 窗口。向量检索则可以只拉取最相关的 K 条记忆，始终控制 context 的大小。</p>
+
+      <div class="insight">
+        <div class="insight-label">关键洞察</div>
+        <p><strong>记忆方案的选择本质上是「规模」的选择。</strong>单用户场景记忆量有限，Markdown 够用；多用户长期运行，记忆量会爆炸，需要向量检索来控制 context 大小。两种方案都是对的，只是解决了不同规模的问题。</p>
+      </div>
+    </section>
+
+    <!-- 六、多 Agent -->
+    <section id="multiagent">
+      <h2><span class="num">六</span>多 Agent：内存隔离 vs 进程持久化</h2>
+
+      <div class="vs-row">
+        <div class="vs-box cc">
+          <div class="vs-label cc">Claude Code：6种派生路径</div>
+          <ul>
+            <li>forkedAgent / forkSubagent / inProcessRunner</li>
+            <li>spawnMultiAgent / AgentTool / extractMemories</li>
+            <li>状态隔离矩阵（in-memory，clone/共享精确控制）</li>
+            <li>双层 abort（lifecycle vs currentWork）</li>
+            <li>Coordinator Prompt 工程（规则写进 prompt）</li>
+          </ul>
+        </div>
+        <div class="vs-box oc">
+          <div class="vs-label oc">OpenClaw：3层持久化 + 孤儿恢复</div>
+          <ul>
+            <li>subagent-registry：in-memory → JSON → 重启恢复</li>
+            <li>孤儿恢复状态机（7种决策路径）</li>
+            <li>steer-restart 机制（SIGUSR1 热重载支持）</li>
+            <li>sweeper 节能（无需归档时停止定时器）</li>
+            <li>动态 import 懒加载孤儿恢复模块</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Claude Code 的多 Agent：状态隔离精度</h3>
+      <pre><code class="language-typescript">// 状态隔离矩阵
+// readFileState → clone（完全独立，子 agent 不共享文件读取状态）
+// toolPermissionContext → 独立实例
+// abort controller (async) → 新建（子 agent 有独立生命周期）
+// abort controller (sync) → 共享 parent（Ctrl+C 立即中断所有子 agent）
+// MCP 连接池 → 共享（避免重复建连，节省资源）
+
+// 双层 abort 的语义
+lifecycleAbortController   // Ctrl+C: 杀死 teammate（SIGKILL 语义）
+currentWorkAbortController  // Escape: 停止当前轮次（SIGINT 语义）
+// → Escape 只停当前轮，teammate 保持 idle，等下一条消息</code></pre>
+
+      <h3>OpenClaw 的多 Agent：跨重启持久化</h3>
+      <pre><code class="language-typescript">// 孤儿恢复决策树
+if (cleanupCompletedAt) return 'skip'
+if (retryCount >= MAX) return giveUp('retry-limit')
+if (timeSince(endedAt) > EXPIRY) return giveUp('expiry')
+if (suppressAnnounceForSteerRestart) return 'skip'  // ← 关键：steer 中断不通知
+if (endedAt > 0) return announceCleanup()
+return waitForCompletion()</code></pre>
+
+      <div class="insight">
+        <div class="insight-label">关键洞察</div>
+        <p><strong>Claude Code 关心的是「状态隔离的精度」，OpenClaw 关心的是「生命周期的持续性」。</strong>前者在内存中精确控制哪些状态共享、哪些独立；后者需要保证子 agent 的状态能跨重启恢复，因为 daemon 进程随时可能被重启（系统更新、配置变更等）。解决的是完全不同的问题。</p>
+      </div>
+    </section>
+
+    <!-- 七、安全体系 -->
+    <section id="security">
+      <h2><span class="num">七</span>安全体系：Bash 注入防护 vs 系统安全审计</h2>
+
+      <div class="vs-row">
+        <div class="vs-box cc">
+          <div class="vs-label cc">Claude Code：23 道 Bash 注入防护</div>
+          <ul>
+            <li>两层 AST 解析（非简单字符串匹配）</li>
+            <li>Zsh Equals Expansion（=curl 绕过）</li>
+            <li>Comment-Quote Desync（# 号引号失步）</li>
+            <li>IPv4-mapped IPv6 解包（::ffff:a9fe:a9fe）</li>
+            <li>反 DNS Rebinding（验证嵌入 axios lookup）</li>
+            <li>non-misparsing 不短路（防 slip through）</li>
+            <li>两阶段 AI 分类器（快路径 + chain-of-thought）</li>
+          </ul>
+        </div>
+        <div class="vs-box oc">
+          <div class="vs-label oc">OpenClaw：11 类系统安全审计</div>
+          <ul>
+            <li>Filesystem / Gateway Config / Dangerous Flags</li>
+            <li>Browser Control / Logging / Elevated</li>
+            <li>Exec Runtime / Risky Safe-Bins / Open Exec Surface</li>
+            <li>SSRF（同样有 IPv4-mapped IPv6 解包）</li>
+            <li>Channel 渠道安全</li>
+            <li>3级 severity（info/warn/critical）</li>
+            <li>动态 import：审计模块不影响启动</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>两套安全体系的视角完全不同</h3>
+      <p>Claude Code 的安全重心在「防止 AI 被操控执行危险命令」——核心威胁是 prompt injection（攻击者通过文件内容或外部数据让 AI 执行恶意 bash 命令）。23 道检查针对的是各种 Bash 注入向量，覆盖了绝大多数已知的绕过技巧。</p>
+      <p>OpenClaw 的安全重心在「系统配置的安全基线」——核心威胁是配置不当（开放了不该开放的端口、用了不安全的渠道配置、暴露了太多执行路径等）。11 类审计针对的是整个系统的安全姿态，集成进 <code>/status</code> 命令，随时可以检查。</p>
+
+      <p>有趣的是，两者都独立实现了 <strong>IPv4-mapped IPv6 解包</strong>（<code>::ffff:a9fe:a9fe → 169.254.169.254</code>）来防护 AWS EC2 元数据接口的 SSRF——说明这是 AI Agent 安全中的一个普遍威胁，不是某家独有的发现。</p>
+
+      <div class="insight">
+        <div class="insight-label">关键洞察</div>
+        <p><strong>两套安全体系应该叠加，而不是替代。</strong>Claude Code 的 Bash 注入防护防的是「执行时」的威胁；OpenClaw 的系统审计防的是「配置时」的威胁。一个 AI Agent 如果两者都做，才能真正达到生产级安全。</p>
+      </div>
+    </section>
+
+    <!-- 八、扩展机制 -->
+    <section id="hooks">
+      <h2><span class="num">八</span>扩展机制：Shell 脚本协议 vs TypeScript 强类型</h2>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>维度</th>
+              <th class="cc">Claude Code Hooks</th>
+              <th class="oc">OpenClaw HookRunner</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>数量</td>
+              <td>27 种事件名</td>
+              <td>28 个函数</td>
+            </tr>
+            <tr>
+              <td>实现方式</td>
+              <td>外部进程（command/agent/http/callback）</td>
+              <td>Plugin SDK 内部注册（TypeScript）</td>
+            </tr>
+            <tr>
+              <td>类型系统</td>
+              <td>Shell 脚本协议（JSON stdout/exit code）</td>
+              <td>强类型函数签名（IDE 补全 + 编译检查）</td>
+            </tr>
+            <tr>
+              <td>拦截语义</td>
+              <td>exit 2 阻断（通过/拒绝）</td>
+              <td>返回修改后的对象（变换）</td>
+            </tr>
+            <tr>
+              <td>执行方式</td>
+              <td>子进程（可并行）</td>
+              <td>函数调用（同步串行）</td>
+            </tr>
+            <tr>
+              <td>语言限制</td>
+              <td>任何语言（Shell/Python/Go/…）</td>
+              <td>仅 TypeScript/JavaScript</td>
+            </tr>
+            <tr>
+              <td>错误隔离</td>
+              <td>子进程崩溃不影响主进程</td>
+              <td>函数抛出异常需要主动捕获</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>为什么 Claude Code 用 Shell 脚本协议？</h3>
+      <pre><code class="language-bash"># Claude Code hook 示例：任何语言都可以
+#!/usr/bin/env python3
+import json, sys
+
+event = json.loads(sys.argv[1])
+if event['tool'] == 'bash' and 'rm -rf' in event['command']:
+    sys.exit(2)  # 阻断
+
+# 成功：exit 0，输出修改后的 JSON（可选）</code></pre>
+
+      <div class="cc-box">
+        <div class="cc-label">Claude Code 的逻辑</div>
+        <p>Shell 脚本协议的好处是「任何人都能写」：不需要懂 TypeScript，不需要 SDK，不需要了解 Claude Code 的内部架构。写一个 Python 脚本，处理 JSON，输出结果，完成。这降低了扩展的门槛，覆盖了更广泛的开发者群体。</p>
+      </div>
+
+      <h3>为什么 OpenClaw 用强类型函数？</h3>
+      <pre><code class="language-typescript">// OpenClaw hook 示例：完整的 TypeScript 类型
+const myPlugin: Plugin = {
+  hooks: {
+    // IDE 自动补全函数签名，编译期发现错误
+    async runBeforeToolCall(ctx: BeforeToolCallContext): Promise<BeforeToolCallContext> {
+      if (ctx.toolName === 'bash' && ctx.input.command.includes('rm -rf')) {
+        return { ...ctx, blocked: true, reason: '危险命令' }
+      }
+      return ctx  // 返回修改后的对象
+    }
+  }
+}</code></pre>
+
+      <div class="oc-box">
+        <div class="oc-label">OpenClaw 的逻辑</div>
+        <p>强类型 Hook 的好处是「编写时就能发现错误」：IDE 补全函数参数，编译期检查类型，不需要运行才知道哪里出了问题。对于要在 production 环境长期运行的插件，这种可靠性比「任何语言都能写」更重要。而且变换语义（返回修改后的对象）比门控语义（exit code）表达力更强，可以实现更复杂的业务逻辑。</p>
+      </div>
+    </section>
+
+    <!-- 九、工程哲学对比 -->
+    <section id="philosophy">
+      <h2><span class="num">九</span>工程哲学对比：两种文化的碰撞</h2>
+
+      <h3>Claude Code 的工程哲学</h3>
+
+      <div class="trait-grid">
+        <div class="trait-item">
+          <div class="t-source" style="color:var(--cc)">Claude Code</div>
+          <div class="t-name">成本最小化优先</div>
+          <div class="t-desc">把昂贵操作推迟/推后台/做一次；cheapest-first 门控；Prompt Cache 精细保护；CacheSafeParams 让后台任务边际成本接近零。</div>
+        </div>
+        <div class="trait-item">
+          <div class="t-source" style="color:var(--cc)">Claude Code</div>
+          <div class="t-name">不可变状态</div>
+          <div class="t-desc">全量替换 State 对象，换来可追踪性、隔离性和可测试性。规则可以被打破（in-place mutation），但必须深刻理解打破它的原因。</div>
+        </div>
+        <div class="trait-item">
+          <div class="t-source" style="color:var(--cc)">Claude Code</div>
+          <div class="t-name">工程务实</div>
+          <div class="t-desc">发现 SDK 有 O(n²) 问题就自己实现 O(n) 方案；不盲从官方 SDK。「不可变」是工具不是教条。</div>
+        </div>
+        <div class="trait-item">
+          <div class="t-source" style="color:var(--cc)">Claude Code</div>
+          <div class="t-name">用户不等待</div>
+          <div class="t-desc">keychainPrefetch 把等待藏进启动；Speculative Classifier Check 把分类延迟藏进用户阅读时间；永远不让用户等待算法。</div>
+        </div>
+      </div>
+
+      <h3>OpenClaw 的工程哲学</h3>
+
+      <div class="trait-grid">
+        <div class="trait-item">
+          <div class="t-source" style="color:var(--oc)">OpenClaw</div>
+          <div class="t-name">可观测性优先</div>
+          <div class="t-desc">SessionActorQueue 暴露队列深度；RuntimeCache 暴露 idleMs；ACP manager 内置延迟统计；观测点从设计之初就内置，不是事后加的。</div>
+        </div>
+        <div class="trait-item">
+          <div class="t-source" style="color:var(--oc)">OpenClaw</div>
+          <div class="t-name">资源有界</div>
+          <div class="t-desc">maxTrackedKeys 防 DDoS；MAX_MISSED_JOBS_PER_RESTART 防雪崩；maxConcurrentRuns 控制并发。在最坏情况下系统仍然可预测。</div>
+        </div>
+        <div class="trait-item">
+          <div class="t-source" style="color:var(--oc)">OpenClaw</div>
+          <div class="t-name">最小惊讶</div>
+          <div class="t-desc">suppressAnnounceForSteerRestart 防双重通知；配置漂移自动修复；normalizeExecApprovals 读取时修复损坏数据。用户操作产生用户期望的结果。</div>
+        </div>
+        <div class="trait-item">
+          <div class="t-source" style="color:var(--oc)">OpenClaw</div>
+          <div class="t-name">延迟加载</div>
+          <div class="t-desc">安全审计模块、孤儿恢复模块动态 import；Jiti 懒初始化；不影响 gateway 冷启动。只有真正需要时才付出内存和时间代价。</div>
+        </div>
+      </div>
+
+      <div class="insight">
+        <div class="insight-label">最根本的哲学差异</div>
+        <p>Claude Code 的哲学核心是<strong>「对用户的每一分钱和每一秒都精打细算」</strong>——这是一个成本敏感、体验敏感的个人工具。OpenClaw 的哲学核心是<strong>「系统在任何情况下都应该可预测、可观测、可恢复」</strong>——这是一个需要 7×24 小时稳定运行的服务。两种哲学没有对错，只有适不适合。</p>
+      </div>
+    </section>
+
+    <!-- 十、互相借鉴 -->
+    <section id="learn">
+      <h2><span class="num">十</span>互相借鉴：如果可以，你会从对方那里拿什么？</h2>
+
+      <h3>OpenClaw 可以从 Claude Code 学到什么</h3>
+
+      <ul>
+        <li><strong>Speculative execution（推测执行）</strong>：用「用户看界面的时间」换「后台计算的时间」。OpenClaw 的权限审批流程也可以在展示确认界面时同步开始分析，减少用户等待。</li>
+        <li><strong>feedback 记忆类型</strong>：同时记录「纠正」和「确认」，不只学失败。OpenClaw 的记忆体系可以引入这个设计，让 AI 也记住「什么时候做对了」。</li>
+        <li><strong>成本梯度压缩</strong>：cheapest-first 的三级压缩思路（先不花钱的，再便宜的，最后才用 LLM）。OpenClaw 的上下文管理也可以引入这个分级策略。</li>
+        <li><strong>non-misparsing 不短路</strong>：在安全检查中，不能因为触发了一个检查就停止其他检查，可能后面还有更危险的问题。</li>
+      </ul>
+
+      <h3>Claude Code 可以从 OpenClaw 学到什么</h3>
+
+      <ul>
+        <li><strong>孤儿恢复机制</strong>：当 Claude Code 以 daemon 模式运行时，进程重启后应该能恢复正在运行的 sub-agent，而不是全部丢失。</li>
+        <li><strong>Round-Robin 负载均衡</strong>：对于有多个 Claude API key 的团队用户，轮转比「总用第一个」更合理。</li>
+        <li><strong>变换语义 Hook</strong>：Claude Code 的 Hook 只能做门控（通过/拒绝），引入「返回修改后对象」的变换语义，可以实现参数注入、内容转换等更强的扩展能力。</li>
+        <li><strong>有界的补跑</strong>：Claude Code 的 session 恢复目前没有明确的重试上界，引入类似 OpenClaw 的 MAX_MISSED_JOBS 概念，防止极端情况下的资源耗尽。</li>
+      </ul>
+
+      <div class="insight">
+        <div class="insight-label">关键洞察</div>
+        <p><strong>两个框架的设计决策几乎没有「错误」，只有「适合不同场景」。</strong>最理想的 AI Agent 框架，应该把 Claude Code 的成本优化、用户体验细节和工程务实与 OpenClaw 的可观测性、资源有界、多用户隔离结合起来。两者互补，而不是竞争。</p>
+      </div>
+    </section>
+
+    <!-- 结论 -->
+    <section id="conclusion">
+      <h2><span class="num">结</span>结论：两种不同的工程文化</h2>
+
+      <p>把 Claude Code 和 OpenClaw 放在一起对比，会发现它们代表了两种截然不同的工程文化：</p>
+
+      <p><strong>Claude Code 是 Anthropic 的工程文化：</strong>精打细算、敢于绕过抽象层（自实现 O(n) 解析）、对成本有洁癖、把用户体验细节（延迟隐藏）做到极致。这是一个「把事情做对，把每分钱用在刀刃上」的文化。</p>
+
+      <p><strong>OpenClaw 是面向服务工程的文化：</strong>可观测性从设计之初就内置、所有资源有明确上界、系统在最坏情况下仍然可预测、配置漂移自动修复。这是一个「系统要能跑一年不崩」的文化。</p>
+
+      <div class="summary-box">
+        <h3>一句话总结</h3>
+        <p>Claude Code 问的是：「怎么让这个用户现在用得更爽、更省钱？」<br>OpenClaw 问的是：「怎么让这个服务明年还在稳定运行？」<br><br>两个问题都值得问。真正优秀的 AI Agent 基础设施，需要同时给出两个答案。</p>
+      </div>
+    </section>
+
+    <div style="margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); color: var(--text2); font-size: 13px; line-height: 1.8;">
+      <p>本文基于 Claude Code v1.x（约 60,000 行）和 OpenClaw 2026.4.4（约 460,000 行）源码对比分析。</p>
+      <p>作者：干活验证虾 × Benjamin | 2026.04.06</p>
+    </div>
+  </main>
+</div>
+
+<script>
+const sections = document.querySelectorAll('section[id]')
+const navLinks = document.querySelectorAll('.sidebar nav a')
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(link => {
+        link.classList.remove('active')
+        if (link.getAttribute('href') === '#' + entry.target.id) {
+          link.classList.add('active')
+        }
+      })
+    }
+  })
+}, { threshold: 0.3 })
+sections.forEach(s => observer.observe(s))
+</script>
+</body>
+</html>
