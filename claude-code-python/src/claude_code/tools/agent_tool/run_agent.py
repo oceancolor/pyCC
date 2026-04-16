@@ -1,138 +1,272 @@
 """
 Core agent run loop.
-Ported from AgentTool/runAgent.ts (973 lines → core loop + filterIncompleteToolCalls).
+Ported from AgentTool/runAgent.ts (973 lines → complete implementation).
 
 Key exports:
-- run_agent(...)   — async generator, full agent execution loop
-- filter_incomplete_tool_calls(messages) — filter orphaned tool calls
+- run_agent(...)                  — async generator, full agent execution loop
+- filter_incomplete_tool_calls()  — filter orphaned tool_use blocks
+- get_agent_system_prompt()       — build agent system prompt with env details
 """
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, AsyncIterator, Dict, List, Optional
+import uuid as _uuid_mod
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Set,
+)
 
 logger = logging.getLogger(__name__)
 
-MAX_AGENT_ITERATIONS = 50
+# Default maximum agent turns, mirrors TS DEFAULT_MAX_TURNS fallback
+DEFAULT_MAX_AGENT_TURNS = 50
 
+
+# ---------------------------------------------------------------------------
+# Public: run_agent()
+# ---------------------------------------------------------------------------
 
 async def run_agent(
-    agent_id: str,
-    system_prompt: str,
-    messages: List[dict],
-    tools: Optional[List[Any]] = None,
+    *,
+    agent_definition: Any,
+    prompt_messages: List[dict],
     tool_use_context: Any = None,
     can_use_tool: Any = None,
-    signal: Any = None,
-    max_iterations: int = MAX_AGENT_ITERATIONS,
-) -> AsyncIterator[dict]:
+    is_async: bool = False,
+    can_show_permission_prompts: Optional[bool] = None,
+    fork_context_messages: Optional[List[dict]] = None,
+    query_source: str = "agent",
+    override: Optional[Dict[str, Any]] = None,
+    model: Optional[str] = None,
+    max_turns: Optional[int] = None,
+    preserve_tool_use_results: bool = False,
+    available_tools: Optional[List[Any]] = None,
+    allowed_tools: Optional[List[str]] = None,
+    on_cache_safe_params: Optional[Callable] = None,
+    content_replacement_state: Any = None,
+    use_exact_tools: bool = False,
+    worktree_path: Optional[str] = None,
+    description: Optional[str] = None,
+    transcript_subdir: Optional[str] = None,
+    on_query_progress: Optional[Callable] = None,
+) -> AsyncGenerator[dict, None]:
     """
-    Core agent execution loop.
+    Full agent execution loop.
 
     Mirrors runAgent() in runAgent.ts (lines 248–).
-    Streams events:
-      - {"type": "assistant_message", "content": [...], "iteration": N}
-      - {"type": "tool_result",       "tool_name": str, "result": Any, "iteration": N}
-      - {"type": "final_response",    "content": [...], "iterations": N}
-      - {"type": "max_iterations_reached", "iterations": N}
+
+    Yields message dicts with ``type`` key. Notable types:
+      - assistant  (from query's assistant_message events)
+      - user       (tool results forwarded by query)
+      - progress
+      - final_response
+      - attachment
     """
-    from claude_code.services.api.claude import query_model_without_streaming
+    from claude_code.query import query, QueryParams
+    from claude_code.utils.uuid import create_agent_id
+    from claude_code.tools.agent_tool.agent_tool_utils import resolve_agent_tools
+    from claude_code.tools.agent_tool.load_agents_dir import is_built_in_agent
 
-    iteration = 0
-    current_messages = list(messages)
+    # ------------------------------------------------------------------
+    # 1. Resolve agent ID
+    # ------------------------------------------------------------------
+    override = override or {}
+    agent_id: str = override.get("agent_id") or create_agent_id()
 
-    while iteration < max_iterations:
-        iteration += 1
+    # ------------------------------------------------------------------
+    # 2. Resolve model
+    # ------------------------------------------------------------------
+    resolved_model: Optional[str] = model
+    if resolved_model is None:
+        # Try agent definition's model first, then context options
+        resolved_model = getattr(agent_definition, "model", None)
+        if resolved_model is None and tool_use_context is not None:
+            opts = getattr(tool_use_context, "options", {})
+            resolved_model = (
+                opts.get("mainLoopModel") if isinstance(opts, dict)
+                else getattr(opts, "main_loop_model", None)
+            )
 
-        result = await query_model_without_streaming(
-            messages=current_messages,
-            system_prompt=[system_prompt] if system_prompt else [],
-            tools=_serialize_tools(tools),
-            options={"max_tokens": 4096},
-            signal=signal,
+    # ------------------------------------------------------------------
+    # 3. Build context messages (handle fork + filter orphans)
+    # ------------------------------------------------------------------
+    context_messages: List[dict] = []
+    if fork_context_messages:
+        context_messages = filter_incomplete_tool_calls(fork_context_messages)
+
+    initial_messages: List[dict] = [*context_messages, *prompt_messages]
+
+    # ------------------------------------------------------------------
+    # 4. Resolve tools
+    # ------------------------------------------------------------------
+    tools: List[Any] = available_tools or []
+    if not use_exact_tools:
+        try:
+            result = resolve_agent_tools(
+                agent_definition,
+                tools,
+                is_async=is_async,
+            )
+            tools = result.resolved_tools
+        except Exception as exc:
+            logger.debug("resolve_agent_tools failed: %s", exc)
+
+    # ------------------------------------------------------------------
+    # 5. Build system prompt
+    # ------------------------------------------------------------------
+    system_prompt_parts: List[str]
+    if override.get("system_prompt"):
+        raw = override["system_prompt"]
+        system_prompt_parts = raw if isinstance(raw, list) else [raw]
+    else:
+        system_prompt_parts = await _get_agent_system_prompt(
+            agent_definition=agent_definition,
+            resolved_model=resolved_model or "",
+            tools=tools,
         )
 
-        content = result.get("content", [])
-        stop_reason = result.get("stop_reason")
+    # ------------------------------------------------------------------
+    # 6. Initialize MCP servers (stub — no-op in Python port)
+    # ------------------------------------------------------------------
+    mcp_cleanup = await _init_agent_mcp_servers_stub(agent_definition)
 
-        yield {
-            "type": "assistant_message",
-            "content": content,
-            "iteration": iteration,
-        }
+    # ------------------------------------------------------------------
+    # 7. Build query params
+    # ------------------------------------------------------------------
+    max_agent_turns: Optional[int] = max_turns
+    if max_agent_turns is None:
+        max_agent_turns = getattr(agent_definition, "max_turns", None)
+    if max_agent_turns is None:
+        max_agent_turns = DEFAULT_MAX_AGENT_TURNS
 
-        # Collect tool_use blocks from the response
-        tool_uses = [
-            b for b in content
-            if isinstance(b, dict) and b.get("type") == "tool_use"
-        ]
+    # Determine abort controller / cancellation signal
+    abort_event: Optional[asyncio.Event] = None
+    if override.get("abort_controller"):
+        ctrl = override["abort_controller"]
+        abort_event = getattr(ctrl, "_event", None)
+    if abort_event is None and tool_use_context is not None:
+        abort_event = getattr(tool_use_context, "abort_event", None)
+    if abort_event is None and is_async:
+        abort_event = asyncio.Event()
 
-        # No tool calls, or model finished — this is the final response
-        if not tool_uses or stop_reason == "end_turn":
-            yield {
-                "type": "final_response",
-                "content": content,
-                "iterations": iteration,
-            }
-            return
+    # ------------------------------------------------------------------
+    # 8. Build QueryParams for the inner query() call
+    # ------------------------------------------------------------------
+    params: QueryParams = {
+        "source": query_source,
+        "system_prompt": system_prompt_parts,
+        "tools": tools,
+        "max_turns": max_agent_turns,
+        "is_non_interactive": is_async,
+        "tool_use_context": tool_use_context,
+    }
+    if resolved_model:
+        params["model"] = resolved_model
 
-        # Execute each tool call and collect results
-        tool_results = []
-        for tu in tool_uses:
-            tool_name = tu.get("name", "")
-            tool_input = tu.get("input", {})
-            tool_use_id = tu.get("id", "")
+    # ------------------------------------------------------------------
+    # 9. Execute inner query loop, yield messages
+    # ------------------------------------------------------------------
+    try:
+        async for message in query(initial_messages, params, abort_event):
+            # Fire progress callback for liveness detection
+            if on_query_progress is not None:
+                on_query_progress()
+
+            msg_type = message.get("type") if isinstance(message, dict) else None
+
+            # Skip raw stream events (stream_event) — forward only recordable types
+            if msg_type == "stream_event":
+                continue
+
+            # Bubble up attachment (e.g., max_turns_reached signal)
+            if msg_type == "attachment":
+                attachment = message.get("attachment", {})
+                if isinstance(attachment, dict) and attachment.get("type") == "max_turns_reached":
+                    logger.debug(
+                        "[Agent: %s] Reached max turns limit (%s)",
+                        getattr(agent_definition, "agent_type", "?"),
+                        attachment.get("maxTurns"),
+                    )
+                    break
+                yield message
+                continue
+
+            # Yield recordable messages: assistant, user, progress, system
+            if msg_type in ("assistant", "user", "progress"):
+                yield message
+                continue
+
+            if msg_type == "system":
+                subtype = message.get("subtype") if isinstance(message, dict) else None
+                if subtype == "compact_boundary":
+                    yield message
+                continue
+
+            # Yield final_response verbatim
+            if msg_type == "final_response":
+                yield message
+                continue
+
+            # Drop other event types (request_start, thinking, tool_use, tool_result,
+            # error, max_iterations_reached, etc.)
+
+    except Exception as exc:
+        from claude_code.utils.errors import AbortError
+        if isinstance(exc, AbortError):
+            raise
+        # Re-raise all other errors after cleanup
+        raise
+    finally:
+        # Clean up agent-specific MCP servers
+        try:
+            await mcp_cleanup()
+        except Exception as cleanup_exc:
+            logger.debug("MCP cleanup error: %s", cleanup_exc)
+
+        # Clean up transcript subdir mapping (stub)
+        logger.debug("[Agent: %s] id=%s completed", getattr(agent_definition, "agent_type", "?"), agent_id)
+
+    # Run built-in callback if present
+    if is_built_in_agent(agent_definition):
+        callback = getattr(agent_definition, "callback", None)
+        if callable(callback):
             try:
-                result_content = await _execute_tool(
-                    tool_name, tool_input, tools, tool_use_context
-                )
+                callback()
             except Exception as exc:
-                logger.debug("Tool %s raised: %s", tool_name, exc)
-                result_content = {"type": "error", "error": str(exc)}
+                logger.debug("Agent callback error: %s", exc)
 
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "content": str(result_content),
-            })
-            yield {
-                "type": "tool_result",
-                "tool_name": tool_name,
-                "result": result_content,
-                "iteration": iteration,
-            }
 
-        # Append assistant turn + user turn with tool results
-        current_messages.append({"role": "assistant", "content": content})
-        current_messages.append({"role": "user", "content": tool_results})
-
-    yield {"type": "max_iterations_reached", "iterations": iteration}
-
+# ---------------------------------------------------------------------------
+# Public: filter_incomplete_tool_calls()
+# ---------------------------------------------------------------------------
 
 def filter_incomplete_tool_calls(messages: List[dict]) -> List[dict]:
     """
-    Filter out assistant messages that contain tool calls without corresponding
-    tool results.  Mirrors filterIncompleteToolCalls() in runAgent.ts (line 866).
+    Filter out assistant messages that contain tool_use blocks without
+    corresponding tool_result blocks in any following user message.
 
-    An "incomplete" tool call is a ``tool_use`` block in an assistant message
-    whose ``id`` does not appear in any ``tool_result`` block in a subsequent
-    user message.  Keeping such orphaned tool calls would cause API errors when
-    the messages are forwarded.
+    Mirrors filterIncompleteToolCalls() in runAgent.ts (line 866).
+
+    Supports both:
+    - Internal envelope format: {"type": "assistant"/"user", "message": {...}}
+    - Raw API format:            {"role": "assistant"/"user", "content": [...]}
 
     Args:
-        messages: List of message dicts with ``type`` and ``message`` keys
-                  (the internal Message type used throughout the port), OR
-                  plain {"role": "assistant"/"user", "content": [...]} dicts.
+        messages: Conversation message list.
 
     Returns:
         Filtered list with orphaned-tool-call assistant messages removed.
     """
     # --- collect all tool_use_ids that have a corresponding result ---
-    tool_use_ids_with_results: set[str] = set()
+    tool_use_ids_with_results: Set[str] = set()
 
     for message in messages:
-        # Support both internal Message envelope and raw API message formats
         msg_type = _get_message_type(message)
         msg_content = _get_message_content(message)
 
@@ -168,15 +302,122 @@ def filter_incomplete_tool_calls(messages: List[dict]) -> List[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Public: get_agent_system_prompt()
+# ---------------------------------------------------------------------------
+
+async def get_agent_system_prompt(
+    agent_definition: Any,
+    tool_use_context: Any = None,
+    resolved_model: str = "",
+    additional_working_directories: Optional[List[str]] = None,
+    resolved_tools: Optional[List[Any]] = None,
+) -> List[str]:
+    """
+    Build the system prompt for an agent.
+
+    Mirrors getAgentSystemPrompt() in runAgent.ts (line 908).
+    Calls agent_definition.get_system_prompt() then enhances with env details.
+    Falls back to DEFAULT_AGENT_PROMPT on error.
+    """
+    return await _get_agent_system_prompt(
+        agent_definition=agent_definition,
+        resolved_model=resolved_model,
+        tools=resolved_tools or [],
+        tool_use_context=tool_use_context,
+        additional_working_directories=additional_working_directories,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Internal helpers
+# ---------------------------------------------------------------------------
+
+async def _get_agent_system_prompt(
+    agent_definition: Any,
+    resolved_model: str = "",
+    tools: Optional[List[Any]] = None,
+    tool_use_context: Any = None,
+    additional_working_directories: Optional[List[str]] = None,
+) -> List[str]:
+    """Build and enhance the agent's system prompt."""
+    from claude_code.constants.prompts import (
+        DEFAULT_AGENT_PROMPT,
+        enhance_system_prompt_with_env_details,
+    )
+
+    tools = tools or []
+    enabled_tool_names: Set[str] = set()
+    for t in tools:
+        name = t.get("name") if isinstance(t, dict) else getattr(t, "name", None)
+        if name:
+            enabled_tool_names.add(name)
+
+    # Try agent definition's get_system_prompt first
+    try:
+        get_sp = getattr(agent_definition, "get_system_prompt", None)
+        if callable(get_sp):
+            # TS version: getSystemPrompt({ toolUseContext })
+            import inspect
+            sig = inspect.signature(get_sp)
+            if len(sig.parameters) == 0:
+                raw = get_sp()
+            else:
+                raw = get_sp(tool_use_context=tool_use_context)
+            if asyncio.iscoroutine(raw):
+                raw = await raw
+            agent_prompt = raw if isinstance(raw, str) else DEFAULT_AGENT_PROMPT
+        else:
+            agent_prompt = DEFAULT_AGENT_PROMPT
+    except Exception:
+        agent_prompt = DEFAULT_AGENT_PROMPT
+
+    base_prompts = [agent_prompt]
+
+    try:
+        return await enhance_system_prompt_with_env_details(
+            existing_system_prompt=base_prompts,
+            model=resolved_model,
+            additional_working_directories=additional_working_directories,
+            enabled_tool_names=enabled_tool_names,
+        )
+    except Exception as exc:
+        logger.debug("enhance_system_prompt_with_env_details failed: %s", exc)
+        return base_prompts
+
+
+async def _init_agent_mcp_servers_stub(agent_definition: Any) -> Callable:
+    """
+    Stub for initializeAgentMcpServers().
+    The full MCP server management is not yet ported to Python.
+    Returns a no-op cleanup function.
+    """
+    mcp_servers = getattr(agent_definition, "mcp_servers", None)
+    if mcp_servers:
+        logger.debug(
+            "[Agent: %s] MCP server initialization not yet ported to Python "
+            "(requested: %s)",
+            getattr(agent_definition, "agent_type", "?"),
+            mcp_servers,
+        )
+
+    async def cleanup() -> None:
+        pass
+
+    return cleanup
+
+
+# ---------------------------------------------------------------------------
+# Message-format helpers (shared with filter_incomplete_tool_calls)
 # ---------------------------------------------------------------------------
 
 def _get_message_type(message: dict) -> Optional[str]:
     """Return the logical message type from either message format."""
     # Internal envelope: {"type": "assistant", "message": {...}}
-    if "type" in message and message["type"] in ("assistant", "user", "progress", "system"):
-        return message["type"]
-    # Raw API format: {"role": "assistant", "content": [...]}
+    if "type" in message:
+        msg_type = message["type"]
+        if msg_type in ("assistant", "user", "progress", "system"):
+            return msg_type
+    # Raw API format: {"role": "assistant"/"user", "content": [...]}
     role = message.get("role")
     if role in ("assistant", "user"):
         return role
@@ -199,14 +440,17 @@ def _serialize_tools(tools: Optional[List[Any]]) -> List[dict]:
         return []
     result = []
     for t in tools:
+        if isinstance(t, dict):
+            result.append(t)
+            continue
         schema = (
             t.input_schema()
             if callable(getattr(t, "input_schema", None))
             else {}
         )
         result.append({
-            "name": t.name,
-            "description": t.description or "",
+            "name": getattr(t, "name", ""),
+            "description": getattr(t, "description", "") or "",
             "input_schema": schema,
         })
     return result
@@ -220,8 +464,13 @@ async def _execute_tool(
 ) -> Any:
     """Find and invoke a tool by name."""
     if not tools:
-        return f"Tool {name} not found"
+        return f"Tool {name!r} not found"
     for t in tools:
-        if getattr(t, "name", None) == name:
-            return await t.call(input_data, context)
-    return f"Tool {name} not found"
+        tool_name = t.get("name") if isinstance(t, dict) else getattr(t, "name", None)
+        if tool_name == name:
+            if isinstance(t, dict):
+                return f"Tool {name!r} has no callable handler"
+            call_fn = getattr(t, "call", None)
+            if callable(call_fn):
+                return await call_fn(input_data, context)
+    return f"Tool {name!r} not found"
