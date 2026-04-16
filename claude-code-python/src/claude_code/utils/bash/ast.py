@@ -337,16 +337,58 @@ def parse_for_security_from_ast(
 
 # Eval-like builtins that execute their arguments as shell code
 EVAL_LIKE_BUILTINS: Set[str] = {
-    'eval', 'exec', 'source', '.', 'bash', 'sh', 'zsh', 'fish', 'dash',
-    'ksh', 'csh', 'tcsh',
+    'eval',
+    'source',
+    '.',
+    'exec',
+    'command',
+    'builtin',
+    'fc',
+    # `coproc rm -rf /` spawns rm as a coprocess
+    'coproc',
+    # Zsh precommand modifiers
+    'noglob',
+    'nocorrect',
+    # `trap 'cmd' SIGNAL` — cmd runs as shell code on signal/exit
+    'trap',
+    # `enable -f /path/lib.so name` — dlopen arbitrary .so
+    'enable',
+    # `mapfile -C callback` / `readarray -C callback`
+    'mapfile',
+    'readarray',
+    # `hash -p /path cmd` — poisons bash command-lookup cache
+    'hash',
+    # bind/complete/compgen callbacks
+    'bind',
+    'complete',
+    'compgen',
+    # `alias name='cmd'`
+    'alias',
+    # `let EXPR` arithmetically evaluates EXPR
+    'let',
 }
 
-# Zsh dangerous builtins
+# Zsh dangerous builtins (full list from TS source)
 ZSH_DANGEROUS_BUILTINS: Set[str] = {
-    'zmodload', 'autoload', 'zcompile',
+    'zmodload',
+    'emulate',
+    'sysopen',
+    'sysread',
+    'syswrite',
+    'sysseek',
+    'zpty',
+    'ztcp',
+    'zsocket',
+    'zf_rm',
+    'zf_mv',
+    'zf_ln',
+    'zf_chmod',
+    'zf_chown',
+    'zf_mkdir',
+    'zf_rmdir',
+    'zf_chgrp',
 }
 
-# Commands that affect shell execution environment dangerously
 # PS4 value safety — only ${VAR} references and safe chars
 PS4_SAFE_RE = re.compile(r'^[^$`\\]*(?:\$\{[A-Za-z_][A-Za-z0-9_]*\}[^$`\\]*)*$')
 
@@ -356,10 +398,64 @@ SUBSCRIPT_EVAL_FLAGS_RE = re.compile(r'^-[a-zA-Z]*[niaA]')
 # Valid variable identifier
 VAR_IDENT_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
+# Builtins that re-parse a NAME operand and arithmetically evaluate subscripts.
+# Maps: builtin name -> set of flags whose NEXT argument is a NAME.
+SUBSCRIPT_EVAL_FLAGS: Dict[str, Set[str]] = {
+    'test': {'-v', '-R'},
+    '[': {'-v', '-R'},
+    '[[': {'-v', '-R'},
+    'printf': {'-v'},
+    'read': {'-a'},
+    'unset': {'-v'},
+    'wait': {'-p'},
+}
+
+# `[[ ARG OP ARG ]]` arithmetic comparison operators — both operands are
+# arithmetically evaluated (array subscript eval risk).
+TEST_ARITH_CMP_OPS: Set[str] = {'-eq', '-ne', '-lt', '-le', '-gt', '-ge'}
+
+# Builtins where EVERY non-flag positional argument is a NAME re-parsed by bash.
+BARE_SUBSCRIPT_NAME_BUILTINS: Set[str] = {'read', 'unset'}
+
+# `read` flags whose NEXT argument is data (not a NAME variable target).
+READ_DATA_FLAGS: Set[str] = {'-p', '-d', '-n', '-N', '-t', '-u', '-i'}
+
+# Shell reserved keywords — if one appears as argv[0], tree-sitter mis-parsed.
+SHELL_KEYWORDS: Set[str] = {
+    'if', 'then', 'else', 'elif', 'fi',
+    'for', 'while', 'until', 'do', 'done',
+    'case', 'esac', 'in',
+    'function',
+    'select',
+    'time',
+    '{', '}',
+    '!',
+}
+
+
+# ---------------------------------------------------------------------------
+# SemanticCheckResult type (mirrors TS: {ok: true} | {ok: false, reason: str})
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SemanticCheckOk:
+    """Semantic check passed."""
+    ok: bool = True
+
+
+@dataclass
+class SemanticCheckFail:
+    """Semantic check failed with a reason."""
+    ok: bool = False
+    reason: str = ''
+
+
+SemanticCheckResult = Union[SemanticCheckOk, SemanticCheckFail]
+
 
 def check_semantics(
     commands: List[SimpleCommand],
-    raw_cmd: str,
+    raw_cmd: str = '',
 ) -> Optional[ParseForSecurityTooComplex]:
     """
     Run semantic checks on a list of extracted SimpleCommands.
@@ -369,51 +465,344 @@ def check_semantics(
 
     This is called AFTER the AST walk to validate the extracted commands.
     """
+    result = check_semantics_full(commands)
+    if not result.ok:
+        # Cast SemanticCheckFail reason to ParseForSecurityTooComplex
+        return ParseForSecurityTooComplex(
+            reason=result.reason,  # type: ignore[union-attr]
+        )
+    return None
+
+
+# jq dangerous flag regex (mirrors TS)
+_JQ_DANGEROUS_FLAGS_RE = re.compile(
+    r'^(?:-[fL](?:$|[^A-Za-z])|--(?:from-file|rawfile|slurpfile|library-path)(?:$|=))'
+)
+
+# timeout duration regex
+_TIMEOUT_DURATION_RE = re.compile(r'^\d+(?:\.\d+)?[smhd]?$')
+
+
+def _strip_wrapper_argv(argv: List[str]) -> List[str]:
+    """
+    Strip safe wrapper commands from argv, returning the inner argv.
+
+    Handles: time, nohup, timeout [opts] DUR, nice [-n N], env [VAR=val...],
+    stdbuf [flags].
+
+    Mirrors the wrapper-stripping loop in checkSemantics (TS ast.ts).
+    """
+    a = list(argv)
+    while a:
+        if a[0] in ('time', 'nohup'):
+            a = a[1:]
+
+        elif a[0] == 'timeout':
+            i = 1
+            ok = True
+            while i < len(a):
+                arg = a[i]
+                if arg in ('--foreground', '--preserve-status', '--verbose'):
+                    i += 1
+                elif re.match(r'^--(?:kill-after|signal)=[A-Za-z0-9_.+-]+$', arg):
+                    i += 1
+                elif arg in ('--kill-after', '--signal') and i + 1 < len(a) and re.match(r'^[A-Za-z0-9_.+-]+$', a[i + 1]):
+                    i += 2
+                elif arg.startswith('--'):
+                    ok = False
+                    break
+                elif arg == '-v':
+                    i += 1
+                elif arg in ('-k', '-s') and i + 1 < len(a) and re.match(r'^[A-Za-z0-9_.+-]+$', a[i + 1]):
+                    i += 2
+                elif re.match(r'^-[ks][A-Za-z0-9_.+-]+$', arg):
+                    i += 1
+                elif arg.startswith('-'):
+                    ok = False
+                    break
+                else:
+                    break
+            if not ok:
+                break
+            if i < len(a) and _TIMEOUT_DURATION_RE.match(a[i]):
+                a = a[i + 1:]
+            elif i < len(a):
+                # non-matching duration — fail open (leave as-is)
+                break
+            else:
+                break
+
+        elif a[0] == 'nice':
+            if len(a) > 2 and a[1] == '-n' and re.match(r'^-?\d+$', a[2]):
+                a = a[3:]
+            elif len(a) > 1 and re.match(r'^-\d+$', a[1]):
+                a = a[2:]
+            elif len(a) > 1 and re.search(r'[$(`]', a[1]):
+                # expansion in argument — can't determine wrapped cmd
+                break
+            else:
+                a = a[1:]
+
+        elif a[0] == 'env':
+            i = 1
+            ok = True
+            while i < len(a):
+                arg = a[i]
+                if '=' in arg and not arg.startswith('-'):
+                    i += 1
+                elif arg in ('-i', '-0', '-v'):
+                    i += 1
+                elif arg == '-u' and i + 1 < len(a):
+                    i += 2
+                elif arg.startswith('-'):
+                    ok = False
+                    break
+                else:
+                    break
+            if not ok:
+                break
+            if i < len(a):
+                a = a[i:]
+            else:
+                break
+
+        elif a[0] == 'stdbuf':
+            i = 1
+            ok = True
+            while i < len(a):
+                arg = a[i]
+                if STDBUF_SHORT_SEP_RE.match(arg) and i + 1 < len(a):
+                    i += 2
+                elif STDBUF_SHORT_FUSED_RE.match(arg):
+                    i += 1
+                elif STDBUF_LONG_RE.match(arg):
+                    i += 1
+                elif arg.startswith('-'):
+                    ok = False
+                    break
+                else:
+                    break
+            if not ok or i <= 1 or i >= len(a):
+                break
+            a = a[i:]
+
+        else:
+            break
+
+    return a
+
+
+def check_semantics_full(commands: List[SimpleCommand]) -> SemanticCheckResult:
+    """
+    Full post-argv semantic checks — mirrors checkSemantics() in TS ast.ts.
+
+    Operates on the argv[] values (not the raw source). Catches:
+    - empty/placeholder command names
+    - wrapper-command stripping (timeout, nohup, nice, env, stdbuf)
+    - eval-like builtins
+    - zsh dangerous builtins
+    - subscript-eval attacks (SUBSCRIPT_EVAL_FLAGS, TEST_ARITH_CMP_OPS,
+      BARE_SUBSCRIPT_NAME_BUILTINS)
+    - shell keyword mis-parses
+    - newline+# injection
+    - jq system() and dangerous flags
+    - /proc/*/environ access
+
+    Returns SemanticCheckOk on success, SemanticCheckFail with a reason.
+    """
     for cmd_obj in commands:
-        argv = cmd_obj.argv
-        if not argv:
+        # Strip safe wrapper commands so we check the wrapped command
+        a = _strip_wrapper_argv(cmd_obj.argv)
+
+        if not a:
             continue
 
-        cmd0 = argv[0]
+        name = a[0]
+
+        # Empty command name
+        if name == '':
+            return SemanticCheckFail(
+                reason='Empty command name — argv[0] may not reflect what bash runs'
+            )
 
         # Defense-in-depth: argv[0] should never be a placeholder
-        if cmd0 == CMDSUB_PLACEHOLDER or cmd0 == VAR_PLACEHOLDER:
-            return ParseForSecurityTooComplex(
-                reason=f'argv[0] is a placeholder ({cmd0})',
-                node_type='placeholder',
+        if CMDSUB_PLACEHOLDER in name or VAR_PLACEHOLDER in name:
+            return SemanticCheckFail(
+                reason='Command name is runtime-determined (placeholder argv[0])'
             )
 
-        # Eval-like builtins — `eval`, `exec`, `source`, etc.
-        if cmd0 in EVAL_LIKE_BUILTINS:
-            return ParseForSecurityTooComplex(
-                reason=f'Command {cmd0!r} executes its arguments as shell code',
-                node_type='eval_like',
+        # Fragment detection
+        if name.startswith('-') or name.startswith('|') or name.startswith('&'):
+            return SemanticCheckFail(
+                reason='Command appears to be an incomplete fragment'
             )
+
+        # SUBSCRIPT_EVAL_FLAGS: builtins where a flag's next arg is a NAME
+        # that bash re-parses with arithmetic subscript evaluation
+        danger_flags = SUBSCRIPT_EVAL_FLAGS.get(name)
+        if danger_flags is not None:
+            for i in range(1, len(a)):
+                arg = a[i]
+                # Separate form: `-v` then NAME in next arg
+                if arg in danger_flags and i + 1 < len(a) and '[' in a[i + 1]:
+                    return SemanticCheckFail(
+                        reason=(
+                            f"'{name} {arg}' operand contains array subscript "
+                            f"— bash evaluates $(cmd) in subscripts"
+                        )
+                    )
+                # Combined short flags: `-ra` merges multiple flags
+                if (len(arg) > 2 and arg[0] == '-' and arg[1] != '-'
+                        and '[' not in arg):
+                    for flag in danger_flags:
+                        if len(flag) == 2 and flag[1] in arg[1:]:
+                            if i + 1 < len(a) and '[' in a[i + 1]:
+                                return SemanticCheckFail(
+                                    reason=(
+                                        f"'{name} {flag}' (combined in '{arg}') "
+                                        f"operand contains array subscript "
+                                        f"— bash evaluates $(cmd) in subscripts"
+                                    )
+                                )
+                # Fused form: `-vNAME` in one arg
+                for flag in danger_flags:
+                    if (len(flag) == 2 and arg.startswith(flag)
+                            and len(arg) > 2 and '[' in arg):
+                        return SemanticCheckFail(
+                            reason=(
+                                f"'{name} {flag}' (fused) operand contains array subscript "
+                                f"— bash evaluates $(cmd) in subscripts"
+                            )
+                        )
+
+        # TEST_ARITH_CMP_OPS: `[[ ARG OP ARG ]]` arithmetic comparisons
+        if name == '[[':
+            for i in range(2, len(a)):
+                if a[i] in TEST_ARITH_CMP_OPS:
+                    prev = a[i - 1] if i - 1 >= 0 else ''
+                    nxt = a[i + 1] if i + 1 < len(a) else ''
+                    if '[' in prev or '[' in nxt:
+                        return SemanticCheckFail(
+                            reason=(
+                                f"'[[ ... {a[i]} ... ]]' operand contains array subscript "
+                                f"— bash arithmetically evaluates $(cmd) in subscripts"
+                            )
+                        )
+
+        # BARE_SUBSCRIPT_NAME_BUILTINS: every positional arg is a NAME
+        if name in BARE_SUBSCRIPT_NAME_BUILTINS:
+            skip_next = False
+            for i in range(1, len(a)):
+                arg = a[i]
+                if skip_next:
+                    skip_next = False
+                    continue
+                if arg.startswith('-'):
+                    if name == 'read':
+                        if arg in READ_DATA_FLAGS:
+                            skip_next = True
+                        elif len(arg) > 2 and arg[1] != '-':
+                            # Combined short flags like `-rp`
+                            for j in range(1, len(arg)):
+                                if ('-' + arg[j]) in READ_DATA_FLAGS:
+                                    if j == len(arg) - 1:
+                                        skip_next = True
+                                    break
+                    continue
+                if '[' in arg:
+                    return SemanticCheckFail(
+                        reason=(
+                            f"'{name}' positional NAME '{arg}' contains array subscript "
+                            f"— bash evaluates $(cmd) in subscripts"
+                        )
+                    )
+
+        # Shell keywords as argv[0] indicate a tree-sitter mis-parse
+        if name in SHELL_KEYWORDS:
+            return SemanticCheckFail(
+                reason=f"Shell keyword '{name}' as command name — tree-sitter mis-parse"
+            )
+
+        # Newline+# injection in argv, envVars, redirects
+        for arg in cmd_obj.argv:
+            if '\n' in arg and NEWLINE_HASH_RE.search(arg):
+                return SemanticCheckFail(
+                    reason=(
+                        'Newline followed by # inside a quoted argument '
+                        'can hide arguments from path validation'
+                    )
+                )
+        for ev in cmd_obj.env_vars:
+            val = ev.get('value', '') if isinstance(ev, dict) else ''
+            if '\n' in val and NEWLINE_HASH_RE.search(val):
+                return SemanticCheckFail(
+                    reason=(
+                        'Newline followed by # inside an env var value '
+                        'can hide arguments from path validation'
+                    )
+                )
+        for r in cmd_obj.redirects:
+            if '\n' in r.target and NEWLINE_HASH_RE.search(r.target):
+                return SemanticCheckFail(
+                    reason=(
+                        'Newline followed by # inside a redirect target '
+                        'can hide arguments from path validation'
+                    )
+                )
+
+        # jq system() and dangerous flags
+        if name == 'jq':
+            for arg in a:
+                if re.search(r'\bsystem\s*\(', arg):
+                    return SemanticCheckFail(
+                        reason=(
+                            'jq command contains system() function '
+                            'which executes arbitrary commands'
+                        )
+                    )
+            if any(_JQ_DANGEROUS_FLAGS_RE.match(arg) for arg in a):
+                return SemanticCheckFail(
+                    reason=(
+                        'jq command contains dangerous flags that could '
+                        'execute code or read arbitrary files'
+                    )
+                )
 
         # Zsh dangerous builtins
-        if cmd0 in ZSH_DANGEROUS_BUILTINS:
-            return ParseForSecurityTooComplex(
-                reason=f'Zsh builtin {cmd0!r} can execute arbitrary code',
-                node_type='zsh_dangerous',
+        if name in ZSH_DANGEROUS_BUILTINS:
+            return SemanticCheckFail(
+                reason=f"Zsh builtin '{name}' can bypass security checks"
             )
 
-        # Check for /proc/self/environ in argv
-        for arg in argv:
-            if PROC_ENVIRON_RE.search(arg):
-                return ParseForSecurityTooComplex(
-                    reason='Command accesses /proc/self/environ',
-                    node_type='proc_environ',
+        # Eval-like builtins
+        if name in EVAL_LIKE_BUILTINS:
+            # `command -v foo` / `command -V foo` are safe existence checks
+            if name == 'command' and len(a) > 1 and a[1] in ('-v', '-V'):
+                pass  # fall through
+            elif (name == 'fc'
+                  and not any(re.search(r'^-[^-]*[es]', arg) for arg in a[1:])):
+                pass  # fc -l (list history) is safe
+            elif (name == 'compgen'
+                  and not any(re.search(r'^-[^-]*[CFW]', arg) for arg in a[1:])):
+                pass  # compgen -c/-f/-v only lists completions
+            else:
+                return SemanticCheckFail(
+                    reason=f"'{name}' evaluates arguments as shell code"
                 )
 
-        # Newline + hash in any argv value (bash comment injection)
-        for arg in argv:
-            if NEWLINE_HASH_RE.search(arg):
-                return ParseForSecurityTooComplex(
-                    reason='Argument contains newline followed by # (comment injection)',
-                    node_type='newline_hash',
+        # /proc/*/environ access
+        for arg in cmd_obj.argv:
+            if '/proc/' in arg and PROC_ENVIRON_RE.search(arg):
+                return SemanticCheckFail(
+                    reason='Accesses /proc/*/environ which may expose secrets'
+                )
+        for r in cmd_obj.redirects:
+            if '/proc/' in r.target and PROC_ENVIRON_RE.search(r.target):
+                return SemanticCheckFail(
+                    reason='Accesses /proc/*/environ which may expose secrets'
                 )
 
-    return None
+    return SemanticCheckOk()
 
 
 # ---------------------------------------------------------------------------
@@ -429,6 +818,129 @@ def strip_raw_string(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Variable scope helpers (mirror TS applyVarToScope)
+# ---------------------------------------------------------------------------
+
+def apply_var_to_scope(
+    var_scope: Dict[str, str],
+    ev: Dict[str, Any],
+) -> None:
+    """
+    Apply a variable assignment to the scope, handling `+=` append semantics.
+
+    SECURITY: If either side (existing value or appended value) contains a
+    placeholder, the result is non-literal — store VAR_PLACEHOLDER so later
+    $VAR correctly rejects as bare arg.
+
+    Mirrors applyVarToScope() in TS ast.ts.
+    """
+    name = ev.get('name', '')
+    value = ev.get('value', '')
+    is_append = ev.get('is_append', False)
+
+    existing = var_scope.get(name, '')
+    combined = (existing + value) if is_append else value
+    var_scope[name] = VAR_PLACEHOLDER if contains_any_placeholder(combined) else combined
+
+
+# ---------------------------------------------------------------------------
+# Tree-sitter AST walking stubs
+# (Full implementation requires tree-sitter Python bindings.
+#  These stubs define the interface; the parse_for_security function
+#  returns parse-unavailable when no AST root is provided.)
+# ---------------------------------------------------------------------------
+
+def _too_complex(node_type: Optional[str], reason: str = '') -> ParseForSecurityTooComplex:
+    """
+    Construct a too-complex result for an unhandled or dangerous node type.
+
+    Mirrors tooComplex(node) in TS ast.ts.
+    """
+    if not reason:
+        if node_type == 'ERROR':
+            reason = 'Parse error'
+        elif node_type in DANGEROUS_TYPES:
+            reason = f'Contains {node_type}'
+        else:
+            reason = f'Unhandled node type: {node_type}'
+    return ParseForSecurityTooComplex(reason=reason, node_type=node_type)
+
+
+def walk_program(
+    root: Any,
+    var_scope: Optional[Dict[str, str]] = None,
+) -> ParseForSecurityResult:
+    """
+    Walk an AST program root and collect simple commands.
+
+    Requires a tree-sitter Node as `root`. Returns parse-unavailable if root
+    is None. Mirrors walkProgram() in TS ast.ts.
+
+    NOTE: In the Python port, tree-sitter parsing is not available, so this
+    function will only be called when an external tree-sitter binding provides
+    a Node object.
+    """
+    if root is None:
+        return ParseForSecurityUnavailable()
+    # Full AST walking is not implemented without tree-sitter bindings.
+    return ParseForSecurityUnavailable()
+
+
+def resolve_simple_expansion(
+    var_name: str,
+    var_scope: Dict[str, str],
+    inside_string: bool,
+    is_special: bool = False,
+) -> Union[str, ParseForSecurityTooComplex]:
+    """
+    Resolve a simple $VAR expansion to its static value (or a placeholder).
+
+    @param var_name: The variable name (without leading $).
+    @param var_scope: Current variable scope mapping name → value.
+    @param inside_string: True when $VAR is inside a double-quoted string.
+    @param is_special: True for special_variable_name nodes ($?, $$, etc.).
+
+    Returns:
+    - The literal value if tracked as a pure literal
+    - VAR_PLACEHOLDER if the var is tracked-but-dynamic or safe-env
+    - ParseForSecurityTooComplex if the var is unknown/unsafe
+
+    Mirrors resolveSimpleExpansion() in TS ast.ts.
+    """
+    # Tracked vars: return the stored value or placeholder
+    tracked_value = var_scope.get(var_name)
+    if tracked_value is not None:
+        if contains_any_placeholder(tracked_value):
+            # Non-literal: bare → reject, inside string → VAR_PLACEHOLDER
+            if not inside_string:
+                return _too_complex('simple_expansion',
+                                    f'Variable {var_name!r} has non-literal value')
+            return VAR_PLACEHOLDER
+        # Pure literal value
+        if not inside_string:
+            # Bare arg: reject if empty or contains IFS/glob chars
+            if tracked_value == '':
+                return _too_complex('simple_expansion',
+                                    f'Variable {var_name!r} is empty')
+            if BARE_VAR_UNSAFE_RE.search(tracked_value):
+                return _too_complex('simple_expansion',
+                                    f'Variable {var_name!r} contains word-split/glob chars')
+        return tracked_value
+
+    # SAFE_ENV_VARS + special vars: only safe inside strings
+    if inside_string:
+        if var_name in SAFE_ENV_VARS:
+            return VAR_PLACEHOLDER
+        if is_special and (
+            var_name in SPECIAL_VAR_NAMES or var_name.isdigit()
+        ):
+            return VAR_PLACEHOLDER
+
+    return _too_complex('simple_expansion',
+                        f'Unresolvable variable reference ${var_name}')
+
+
+# ---------------------------------------------------------------------------
 # Export for type checking compatibility
 # ---------------------------------------------------------------------------
 
@@ -439,6 +951,9 @@ __all__ = [
     'ParseForSecuritySimple',
     'ParseForSecurityTooComplex',
     'ParseForSecurityUnavailable',
+    'SemanticCheckResult',
+    'SemanticCheckOk',
+    'SemanticCheckFail',
     'CMDSUB_PLACEHOLDER',
     'VAR_PLACEHOLDER',
     'STRUCTURAL_TYPES',
@@ -460,6 +975,11 @@ __all__ = [
     'DOLLAR',
     'EVAL_LIKE_BUILTINS',
     'ZSH_DANGEROUS_BUILTINS',
+    'SUBSCRIPT_EVAL_FLAGS',
+    'TEST_ARITH_CMP_OPS',
+    'BARE_SUBSCRIPT_NAME_BUILTINS',
+    'READ_DATA_FLAGS',
+    'SHELL_KEYWORDS',
     'BARE_VAR_UNSAFE_RE',
     'STDBUF_SHORT_SEP_RE',
     'STDBUF_SHORT_FUSED_RE',
@@ -469,6 +989,12 @@ __all__ = [
     'parse_for_security',
     'parse_for_security_from_ast',
     'check_semantics',
+    'check_semantics_full',
     'strip_raw_string',
     'node_type_id',
+    'apply_var_to_scope',
+    'resolve_simple_expansion',
+    'walk_program',
+    '_too_complex',
+    '_strip_wrapper_argv',
 ]
