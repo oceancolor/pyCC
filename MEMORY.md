@@ -4,7 +4,7 @@
 ## Claude Code 移植项目（进行中）
 
 **开始时间：** 2026-04-07
-**最新快照：** 2026-04-10 00:30
+**最新快照：** 2026-04-16 16:00
 
 | 指标 | Python |
 |------|--------|
@@ -30,10 +30,42 @@
 - `setup.py`：会话初始化
 - FileReadTool/FileEditTool/FileWriteTool/GlobTool/GrepTool（完整实现）
 
-**下一步：**
-1. services/ 剩余 7%（api/ 边缘文件）
-2. commands/ 剩余 9%（insights 3200行最大，暂跳）
-3. tasks/ 子目录（LocalShellTask, LocalAgentTask, DreamTask 等）
+**当前状态（2026-04-16）：**
+- Python 文件总数 1,272 个，总行数 ~132,638 行
+- 整体覆盖 ~79%，stub 文件 537 个（最大缺口）
+- 测试 48 passed ✅ 全程稳定
+
+**剩余高优先级缺口：**
+- `run_agent.py`（973行TS，MISSING）
+- `services/teamMemorySync/index.py`（1256行，MISSING）
+- `cli/print.py`（5594行TS → 965行，17%）
+- `utils/hooks.ts`（5022行，stub）
+- `commands/insights.py`（3200行，7行）
+
+---
+
+## Claude Code 接入混元模型（进行中）
+
+**状态（2026-04-22）：** Windows 本地编译已成功，正在接入混元大模型
+
+**已完成的改动（服务器端，claude-code-analysis/claude-code-source/）：**
+- `services/api/hunyuan.ts`（558行）— 核心适配层，Anthropic SDK → 混元 OpenAI 兼容格式
+  - `convertMessages()`、`convertTools()`、`openAIStreamToAnthropicEvents()`
+  - 导出 `createHunyuanClient()`、`isHunyuanEnabled()`
+- `utils/model/providers.ts` — `APIProvider` 加入 `'hunyuan'`，环境变量优先判断
+- `services/api/client.ts` — `getAnthropicClient()` 加混元分支
+- `utils/auth.ts` — `HUNYUAN_API_KEY` 设置时跳过 Anthropic 登录校验
+- `utils/model/model.ts` — 混元模式下返回混元模型名
+
+**混元环境变量：**
+```
+HUNYUAN_API_KEY=xxx          # 必填，启用混元模式
+HUNYUAN_MODEL=hunyuan-turbos-latest
+HUNYUAN_SMALL_MODEL=hunyuan-lite
+HUNYUAN_BASE_URL=https://api.hunyuan.cloud.tencent.com/v1  # 可选
+```
+
+**Windows 编译情况：** bun 编译成功，本地可运行，当前继续推进混元接入
 
 ---
 

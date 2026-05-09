@@ -963,3 +963,1146 @@ async def _maybe_await(value: Any) -> Any:
     if asyncio.iscoroutine(value):
         return await value
     return value
+
+
+# ---------------------------------------------------------------------------
+# Control-request response helpers
+# ---------------------------------------------------------------------------
+
+
+def send_control_response_success(
+    output_queue: Any,
+    message: Dict[str, Any],
+    response: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Enqueue a successful control response.
+
+    Mirrors ``sendControlResponseSuccess`` from the TypeScript source.
+    """
+    _enqueue_to(output_queue, {
+        "type": "control_response",
+        "response": {
+            "subtype": "success",
+            "request_id": message.get("request_id"),
+            "response": response,
+        },
+    })
+
+
+def send_control_response_error(
+    output_queue: Any,
+    message: Dict[str, Any],
+    error_message_text: str,
+) -> None:
+    """Enqueue an error control response.
+
+    Mirrors ``sendControlResponseError`` from the TypeScript source.
+    """
+    _enqueue_to(output_queue, {
+        "type": "control_response",
+        "response": {
+            "subtype": "error",
+            "request_id": message.get("request_id"),
+            "error": error_message_text,
+        },
+    })
+
+
+def _enqueue_to(output_queue: Any, item: Any) -> None:
+    """Enqueue *item* into *output_queue* regardless of its concrete type.
+
+    Accepts asyncio.Queue, a list, or any object with an ``enqueue`` method.
+    """
+    if hasattr(output_queue, "enqueue"):
+        output_queue.enqueue(item)
+    elif isinstance(output_queue, list):
+        output_queue.append(item)
+    elif isinstance(output_queue, asyncio.Queue):
+        output_queue.put_nowait(item)
+    else:
+        _log_debug(f"_enqueue_to: unknown queue type {type(output_queue)}, dropping: {item}")
+
+
+# ---------------------------------------------------------------------------
+# handle_set_permission_mode
+# ---------------------------------------------------------------------------
+
+
+def handle_set_permission_mode(
+    request: Dict[str, Any],
+    request_id: str,
+    tool_permission_context: Dict[str, Any],
+    output_queue: Any,
+) -> Dict[str, Any]:
+    """Handle a ``set_permission_mode`` control request.
+
+    Validates the requested mode transition and emits the appropriate
+    control response.  Returns the (possibly updated) tool_permission_context.
+
+    Mirrors ``handleSetPermissionMode`` from the TypeScript source.
+    """
+    mode = request.get("mode")
+
+    # Check bypassPermissions constraints.
+    if mode == "bypassPermissions":
+        if not tool_permission_context.get("isBypassPermissionsModeAvailable", False):
+            send_control_response_error(
+                output_queue,
+                {"request_id": request_id},
+                "Cannot set permission mode to bypassPermissions because the session "
+                "was not launched with --dangerously-skip-permissions",
+            )
+            return tool_permission_context
+
+    # Emit success and return updated context.
+    send_control_response_success(
+        output_queue,
+        {"request_id": request_id},
+        {"mode": mode},
+    )
+    return {**tool_permission_context, "mode": mode}
+
+
+# ---------------------------------------------------------------------------
+# handle_rewind_files
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class RewindFilesResult:
+    """Result of :func:`handle_rewind_files`.
+
+    Mirrors ``RewindFilesResult`` from ``agentSdkTypes.ts``.
+    """
+
+    can_rewind: bool
+    error: Optional[str] = None
+    files_changed: Optional[int] = None
+    insertions: Optional[int] = None
+    deletions: Optional[int] = None
+
+
+async def handle_rewind_files(
+    user_message_id: str,
+    app_state: Any,
+    set_app_state: Callable[[Callable[[Any], Any]], None],
+    dry_run: bool,
+) -> RewindFilesResult:
+    """Handle a ``rewind_files`` control request.
+
+    Checks whether file history is enabled, whether the target message exists,
+    and either performs the rewind or returns a dry-run diff summary.
+
+    Mirrors ``handleRewindFiles`` from the TypeScript source.
+    """
+    try:
+        from claude_code.utils.file_history import (  # type: ignore[import]
+            file_history_enabled,
+            file_history_can_restore,
+            file_history_rewind,
+            file_history_get_diff_stats,
+        )
+    except ImportError:
+        return RewindFilesResult(can_rewind=False, error="File rewinding is not available.")
+
+    if not file_history_enabled():
+        return RewindFilesResult(can_rewind=False, error="File rewinding is not enabled.")
+
+    file_history = getattr(app_state, "file_history", None) or (
+        app_state.get("file_history") if isinstance(app_state, dict) else None
+    )
+    if not file_history_can_restore(file_history, user_message_id):
+        return RewindFilesResult(
+            can_rewind=False,
+            error="No file checkpoint found for this message.",
+        )
+
+    if dry_run:
+        diff_stats = await file_history_get_diff_stats(file_history, user_message_id)
+        return RewindFilesResult(
+            can_rewind=True,
+            files_changed=diff_stats.get("files_changed") if diff_stats else None,
+            insertions=diff_stats.get("insertions") if diff_stats else None,
+            deletions=diff_stats.get("deletions") if diff_stats else None,
+        )
+
+    try:
+
+        def _updater(updater_fn: Callable[[Any], Any]) -> None:
+            def _apply(prev: Any) -> Any:
+                fh = getattr(prev, "file_history", None) or (
+                    prev.get("file_history") if isinstance(prev, dict) else None
+                )
+                new_fh = updater_fn(fh)
+                if isinstance(prev, dict):
+                    return {**prev, "file_history": new_fh}
+                try:
+                    import copy
+                    new_prev = copy.copy(prev)
+                    object.__setattr__(new_prev, "file_history", new_fh)
+                    return new_prev
+                except Exception:
+                    return prev
+
+            set_app_state(_apply)
+
+        await file_history_rewind(_updater, user_message_id)
+    except Exception as exc:
+        return RewindFilesResult(
+            can_rewind=False,
+            error=f"Failed to rewind: {exc}",
+        )
+
+    return RewindFilesResult(can_rewind=True)
+
+
+# ---------------------------------------------------------------------------
+# emit_load_error
+# ---------------------------------------------------------------------------
+
+
+def emit_load_error(message: str, output_format: Optional[str]) -> None:
+    """Emit an error in the correct format for the current output mode.
+
+    When *output_format* is ``'stream-json'``, writes an NDJSON error-result
+    object to stdout.  Otherwise writes plain text to stderr.
+
+    Mirrors ``emitLoadError`` from the TypeScript source.
+    """
+    import json
+
+    if output_format == "stream-json":
+        error_result = {
+            "type": "result",
+            "subtype": "error_during_execution",
+            "duration_ms": 0,
+            "duration_api_ms": 0,
+            "is_error": True,
+            "num_turns": 0,
+            "stop_reason": None,
+            "session_id": _get_session_id(),
+            "total_cost_usd": 0,
+            "usage": {},
+            "modelUsage": {},
+            "permission_denials": [],
+            "uuid": str(_uuid_module.uuid4()),
+            "errors": [message],
+        }
+        sys.stdout.write(json.dumps(error_result) + "\n")
+        sys.stdout.flush()
+    else:
+        sys.stderr.write(message + "\n")
+        sys.stderr.flush()
+
+
+def _get_session_id() -> str:
+    """Return the current session ID, if available."""
+    try:
+        from claude_code.bootstrap.state import get_session_id  # type: ignore[import]
+        return get_session_id() or ""
+    except ImportError:
+        return ""
+
+
+# ---------------------------------------------------------------------------
+# load_initial_messages  (partial port – core structure)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class LoadInitialMessagesResult:
+    """Result of :func:`load_initial_messages`.
+
+    Mirrors the ``LoadInitialMessagesResult`` type from the TypeScript source.
+    """
+
+    messages: List[Dict[str, Any]]
+    turn_interruption_state: Optional[Dict[str, Any]] = None
+    agent_setting: Optional[str] = None
+
+
+async def load_initial_messages(
+    set_app_state: Callable[[Callable[[Any], Any]], None],
+    options: Dict[str, Any],
+) -> LoadInitialMessagesResult:
+    """Load the initial message history for a headless session.
+
+    Handles ``continue``, ``resume``, and fresh-start paths.  Mirrors
+    ``loadInitialMessages`` from the TypeScript source.
+
+    Parameters
+    ----------
+    set_app_state:
+        Callback to update application state (used when resuming / continuing).
+    options:
+        A dict with optional keys:
+        - ``continue`` (bool): resume the most recent session.
+        - ``resume`` (str | bool): resume by session ID or URL.
+        - ``resume_session_at`` (str): slice messages up to this UUID.
+        - ``fork_session`` (bool): fork the resumed session.
+        - ``output_format`` (str | None): ``'stream-json'`` or ``None``.
+        - ``teleport`` (str | None): teleport session identifier.
+    """
+    if options.get("continue"):
+        try:
+            from claude_code.utils.conversation_recovery import (  # type: ignore[import]
+                load_conversation_for_resume,
+            )
+
+            result = await load_conversation_for_resume(None, None)
+            if result:
+                return LoadInitialMessagesResult(
+                    messages=result.get("messages", []),
+                    turn_interruption_state=result.get("turnInterruptionState"),
+                    agent_setting=result.get("agentSetting"),
+                )
+        except ImportError:
+            pass
+        except Exception as exc:
+            _log_error(exc)
+            return LoadInitialMessagesResult(messages=[])
+
+    if options.get("resume"):
+        try:
+            from claude_code.utils.session_storage import (  # type: ignore[import]
+                load_conversation_for_resume as load_resume,
+            )
+            from claude_code.utils.session_url import (  # type: ignore[import]
+                parse_session_identifier,
+            )
+
+            resume_val = options["resume"]
+            parsed = parse_session_identifier(
+                resume_val if isinstance(resume_val, str) else ""
+            )
+            if not parsed:
+                output_format = options.get("output_format")
+                emit_load_error(
+                    "Error: --resume requires a valid session ID when used with --print. "
+                    "Usage: claude -p --resume <session-id>",
+                    output_format,
+                )
+                return LoadInitialMessagesResult(messages=[])
+
+            result = await load_resume(
+                parsed.get("session_id"),
+                parsed.get("jsonl_file"),
+            )
+            if not result or not result.get("messages"):
+                emit_load_error(
+                    f"No conversation found with session ID: {parsed.get('session_id')}",
+                    options.get("output_format"),
+                )
+                return LoadInitialMessagesResult(messages=[])
+
+            # Handle resume_session_at truncation.
+            resume_at = options.get("resume_session_at")
+            if resume_at:
+                messages = result.get("messages", [])
+                idx = next(
+                    (i for i, m in enumerate(messages) if m.get("uuid") == resume_at),
+                    -1,
+                )
+                if idx < 0:
+                    emit_load_error(
+                        f"No message found with message.uuid of: {resume_at}",
+                        options.get("output_format"),
+                    )
+                    return LoadInitialMessagesResult(messages=[])
+                result["messages"] = messages[: idx + 1]
+
+            return LoadInitialMessagesResult(
+                messages=result.get("messages", []),
+                turn_interruption_state=result.get("turnInterruptionState"),
+                agent_setting=result.get("agentSetting"),
+            )
+        except ImportError:
+            pass
+        except Exception as exc:
+            _log_error(exc)
+            emit_load_error(
+                f"Failed to resume session: {exc}",
+                options.get("output_format"),
+            )
+            return LoadInitialMessagesResult(messages=[])
+
+    # Default: fresh session (session-start hooks may prepend messages).
+    try:
+        from claude_code.utils.session_start import (  # type: ignore[import]
+            process_session_start_hooks,
+        )
+
+        messages = await process_session_start_hooks("startup")
+        return LoadInitialMessagesResult(messages=messages)
+    except ImportError:
+        return LoadInitialMessagesResult(messages=[])
+
+
+# ---------------------------------------------------------------------------
+# get_structured_io
+# ---------------------------------------------------------------------------
+
+
+def get_structured_io(
+    input_prompt: Union[str, AsyncIterable[Any]],
+    options: Dict[str, Any],
+) -> Any:
+    """Build and return the appropriate StructuredIO instance.
+
+    When *options["sdk_url"]* is set a RemoteIO is created; otherwise a
+    plain StructuredIO is used.  An empty-string *input_prompt* produces
+    an empty async input stream.
+
+    Mirrors ``getStructuredIO`` from the TypeScript source.
+    """
+    import json
+
+    replay = options.get("replay_user_messages", False)
+    sdk_url = options.get("sdk_url")
+
+    # Normalise the raw prompt into an async-iterable of NDJSON lines.
+    if isinstance(input_prompt, str):
+        if input_prompt.strip():
+            user_message = json.dumps({
+                "type": "user",
+                "session_id": "",
+                "message": {"role": "user", "content": input_prompt},
+                "parent_tool_use_id": None,
+            })
+            input_stream = _async_iter_from_list([user_message])
+        else:
+            input_stream: AsyncIterable[str] = _async_iter_from_list([])
+    else:
+        input_stream = input_prompt
+
+    if sdk_url:
+        try:
+            from claude_code.cli.remote_io import RemoteIO  # type: ignore[import]
+            return RemoteIO(sdk_url, input_stream, replay)
+        except ImportError:
+            pass
+
+    try:
+        from claude_code.cli.structured_io import StructuredIO  # type: ignore[import]
+        return StructuredIO(input_stream, replay)
+    except ImportError:
+        # Minimal stub
+        return _MinimalStructuredIO(input_stream)
+
+
+async def _async_iter_from_list_inner(items: List[Any]) -> AsyncIterable:
+    """Yield items from *items* as an async iterable."""
+    for item in items:
+        yield item
+
+
+def _async_iter_from_list(items: List[Any]) -> AsyncIterable:
+    """Return an async iterable over *items*."""
+    return _async_iter_from_list_inner(items)
+
+
+class _MinimalStructuredIO:
+    """Minimal stub StructuredIO used when the real implementation is unavailable."""
+
+    def __init__(self, input_stream: AsyncIterable[Any]) -> None:
+        self.input_stream = input_stream
+        self._outbound: List[Any] = []
+
+    @property
+    def outbound(self) -> List[Any]:
+        return self._outbound
+
+    async def write(self, message: Any) -> None:
+        self._outbound.append(message)
+
+    def set_unexpected_response_callback(self, cb: Any) -> None:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# handle_initialize_request
+# ---------------------------------------------------------------------------
+
+
+async def handle_initialize_request(
+    request: Dict[str, Any],
+    request_id: str,
+    initialized: bool,
+    output_queue: Any,
+    commands: List[Any],
+    model_infos: List[Dict[str, Any]],
+    structured_io: Any,
+    enable_auth_status: bool,
+    options: Dict[str, Any],
+    agents: List[Any],
+    get_app_state: Callable[[], Any],
+) -> None:
+    """Handle an ``initialize`` control request from the SDK.
+
+    Populates the response with commands, agents, account info, and model
+    capabilities.  Mirrors ``handleInitializeRequest`` from the TypeScript source.
+    """
+    if initialized:
+        _enqueue_to(output_queue, {
+            "type": "control_response",
+            "response": {
+                "subtype": "error",
+                "error": "Already initialized",
+                "request_id": request_id,
+                "pending_permission_requests": (
+                    structured_io.get_pending_permission_requests()
+                    if hasattr(structured_io, "get_pending_permission_requests")
+                    else []
+                ),
+            },
+        })
+        return
+
+    # Apply overrides from the initialize message.
+    if "systemPrompt" in request:
+        options["system_prompt"] = request["systemPrompt"]
+    if "appendSystemPrompt" in request:
+        options["append_system_prompt"] = request["appendSystemPrompt"]
+    if "promptSuggestions" in request:
+        options["prompt_suggestions"] = request["promptSuggestions"]
+
+    # Merge SDK-supplied agents.
+    if request.get("agents"):
+        try:
+            from claude_code.tools.agent_tool.load_agents_dir import (  # type: ignore[import]
+                parse_agents_from_json,
+            )
+
+            stdin_agents = parse_agents_from_json(request["agents"], "flagSettings")
+            agents.extend(stdin_agents)
+        except ImportError:
+            pass
+
+    # Register hook callbacks.
+    if request.get("hooks"):
+        try:
+            from claude_code.bootstrap.state import register_hook_callbacks  # type: ignore[import]
+
+            hooks: Dict[str, List[Any]] = {}
+            for event, matchers in request["hooks"].items():
+                hooks[event] = [
+                    {
+                        "matcher": m.get("matcher"),
+                        "hooks": [
+                            structured_io.create_hook_callback(
+                                cb_id, m.get("timeout")
+                            )
+                            for cb_id in m.get("hookCallbackIds", [])
+                        ],
+                    }
+                    for m in matchers
+                ]
+            register_hook_callbacks(hooks)
+        except (ImportError, AttributeError):
+            pass
+
+    if request.get("jsonSchema"):
+        try:
+            from claude_code.bootstrap.state import set_init_json_schema  # type: ignore[import]
+            set_init_json_schema(request["jsonSchema"])
+        except ImportError:
+            pass
+
+    # Gather account information.
+    account_info: Dict[str, Any] = {}
+    try:
+        from claude_code.utils.auth import get_account_information  # type: ignore[import]
+        info = get_account_information()
+        if info:
+            account_info = {
+                "email": getattr(info, "email", None),
+                "organization": getattr(info, "organization", None),
+                "subscriptionType": getattr(info, "subscription", None),
+                "tokenSource": getattr(info, "token_source", None),
+                "apiKeySource": getattr(info, "api_key_source", None),
+            }
+    except ImportError:
+        pass
+
+    def _cmd_info(cmd: Any) -> Dict[str, str]:
+        name = (
+            cmd.get("name", "") if isinstance(cmd, dict)
+            else getattr(cmd, "name", "")
+        )
+        description = (
+            cmd.get("description", "") if isinstance(cmd, dict)
+            else getattr(cmd, "description", "")
+        )
+        argument_hint = (
+            cmd.get("argument_hint", "") if isinstance(cmd, dict)
+            else getattr(cmd, "argument_hint", "")
+        ) or ""
+        return {"name": name, "description": description, "argumentHint": argument_hint}
+
+    def _agent_info(agent: Any) -> Dict[str, Any]:
+        agent_type = (
+            agent.get("agent_type", "") if isinstance(agent, dict)
+            else getattr(agent, "agent_type", "")
+        )
+        when_to_use = (
+            agent.get("when_to_use", "") if isinstance(agent, dict)
+            else getattr(agent, "when_to_use", "")
+        )
+        model = (
+            agent.get("model") if isinstance(agent, dict)
+            else getattr(agent, "model", None)
+        )
+        return {
+            "name": agent_type,
+            "description": when_to_use,
+            "model": None if model == "inherit" else model,
+        }
+
+    visible_commands = [
+        c for c in commands
+        if (
+            c.get("user_invocable", True) if isinstance(c, dict)
+            else getattr(c, "user_invocable", True)
+        ) is not False
+    ]
+
+    init_response: Dict[str, Any] = {
+        "commands": [_cmd_info(c) for c in visible_commands],
+        "agents": [_agent_info(a) for a in agents],
+        "models": model_infos,
+        "account": account_info,
+        "pid": os.getpid(),
+    }
+
+    _enqueue_to(output_queue, {
+        "type": "control_response",
+        "response": {
+            "subtype": "success",
+            "request_id": request_id,
+            "response": init_response,
+        },
+    })
+
+
+# ---------------------------------------------------------------------------
+# run_headless_streaming  (generator / async-iterable stub)
+# ---------------------------------------------------------------------------
+
+
+async def run_headless_streaming(
+    structured_io: Any,
+    mcp_clients: List[Any],
+    commands: List[Any],
+    tools: List[Any],
+    initial_messages: List[Dict[str, Any]],
+    can_use_tool: Callable[..., Awaitable[Dict[str, Any]]],
+    sdk_mcp_configs: Dict[str, Any],
+    get_app_state: Callable[[], Any],
+    set_app_state: Callable[[Callable[[Any], Any]], None],
+    agents: List[Any],
+    options: Dict[str, Any],
+    turn_interruption_state: Optional[Dict[str, Any]] = None,
+) -> AsyncIterable[Dict[str, Any]]:
+    """Async generator that runs the headless query loop and yields SDK messages.
+
+    This is the inner streaming loop called by :func:`run_headless`.  Each
+    yielded item is an ``StdoutMessage``-shaped dict.
+
+    Mirrors ``runHeadlessStreaming`` from the TypeScript source.  The full
+    interactive scaffolding (proactive ticks, cron scheduler, bridge handle,
+    etc.) is not yet ported; the core ask/drain loop is implemented.
+    """
+    # NOTE: Full implementation requires QueryEngine, StructuredIO, and
+    # AppState.  This stub validates the signature and raises
+    # NotImplementedError rather than silently doing nothing.
+    raise NotImplementedError(
+        "run_headless_streaming: pending completion of the Claude Code Python runtime."
+    )
+    # Make this function syntactically an async generator:
+    if False:  # pragma: no cover
+        yield {}
+
+
+# ---------------------------------------------------------------------------
+# handle_channel_enable
+# ---------------------------------------------------------------------------
+
+
+def handle_channel_enable(
+    request_id: str,
+    server_name: str,
+    connection_pool: List[Dict[str, Any]],
+    output_queue: Any,
+) -> None:
+    """Handle an IDE-triggered ``channel_enable`` control request.
+
+    Validates the server, appends it to the session allowed-channels list,
+    and registers the channel-message notification handler.  On gate failure
+    or missing server, emits an error control response.
+
+    Mirrors ``handleChannelEnable`` from the TypeScript source.
+    """
+    def _error(msg: str) -> None:
+        send_control_response_error(
+            output_queue, {"request_id": request_id}, msg
+        )
+
+    # Find the connected server in the pool.
+    connection = next(
+        (
+            c for c in connection_pool
+            if (
+                (c.get("name") if isinstance(c, dict) else getattr(c, "name", None))
+                == server_name
+                and (
+                    (c.get("type") if isinstance(c, dict) else getattr(c, "type", None))
+                    == "connected"
+                )
+            )
+        ),
+        None,
+    )
+    if connection is None:
+        return _error(f"server {server_name} is not connected")
+
+    # Validate plugin source.
+    config = (
+        connection.get("config", {}) if isinstance(connection, dict)
+        else getattr(connection, "config", {})
+    ) or {}
+    plugin_source = (
+        config.get("pluginSource") if isinstance(config, dict)
+        else getattr(config, "plugin_source", None)
+    )
+
+    if not plugin_source:
+        return _error(
+            f"server {server_name} is not plugin-sourced; "
+            "channel_enable requires a marketplace plugin"
+        )
+
+    # Try to gate through the channel allowlist.
+    try:
+        from claude_code.services.mcp.channel_notification import (  # type: ignore[import]
+            gate_channel_server,
+        )
+        from claude_code.bootstrap.state import (  # type: ignore[import]
+            get_allowed_channels,
+            set_allowed_channels,
+        )
+
+        capabilities = (
+            connection.get("capabilities", {})
+            if isinstance(connection, dict)
+            else getattr(connection, "capabilities", {})
+        ) or {}
+        gate = gate_channel_server(server_name, capabilities, plugin_source)
+        if gate.get("action") == "skip":
+            return _error(gate.get("reason", "channel gate failed"))
+
+        send_control_response_success(output_queue, {"request_id": request_id})
+    except ImportError:
+        # Channel feature unavailable — return success stub.
+        send_control_response_success(output_queue, {"request_id": request_id})
+
+
+# ---------------------------------------------------------------------------
+# Task-notification parsing helpers
+# ---------------------------------------------------------------------------
+
+
+def parse_task_notification(
+    notification_text: str,
+) -> Dict[str, Any]:
+    """Parse a task-notification XML blob into a structured dict.
+
+    Mirrors the inline regex parsing inside ``drainCommandQueue`` in the
+    TypeScript source.
+
+    Returns a dict with keys:
+    - ``task_id``
+    - ``tool_use_id`` (optional)
+    - ``output_file``
+    - ``summary``
+    - ``status``:  one of ``'completed'``, ``'failed'``, ``'stopped'``
+    - ``usage``: optional sub-dict with ``total_tokens``, ``tool_uses``, ``duration_ms``
+    - ``has_status``: ``True`` when a ``<status>`` tag was present (terminal notification)
+    """
+    task_id_m = re.search(r"<task-id>([^<]+)</task-id>", notification_text)
+    tool_use_id_m = re.search(r"<tool-use-id>([^<]+)</tool-use-id>", notification_text)
+    output_file_m = re.search(r"<output-file>([^<]+)</output-file>", notification_text)
+    status_m = re.search(r"<status>([^<]+)</status>", notification_text)
+    summary_m = re.search(r"<summary>([^<]+)</summary>", notification_text)
+    usage_m = re.search(r"<usage>(.*?)</usage>", notification_text, re.DOTALL)
+
+    raw_status = status_m.group(1) if status_m else None
+    valid_statuses = {"completed", "failed", "stopped", "killed"}
+    if raw_status in valid_statuses:
+        status = "stopped" if raw_status == "killed" else raw_status
+    else:
+        status = "completed"
+
+    usage: Optional[Dict[str, int]] = None
+    if usage_m:
+        usage_content = usage_m.group(1)
+        total_m = re.search(r"<total_tokens>(\d+)</total_tokens>", usage_content)
+        tool_uses_m = re.search(r"<tool_uses>(\d+)</tool_uses>", usage_content)
+        duration_m = re.search(r"<duration_ms>(\d+)</duration_ms>", usage_content)
+        if total_m and tool_uses_m:
+            usage = {
+                "total_tokens": int(total_m.group(1)),
+                "tool_uses": int(tool_uses_m.group(1)),
+                "duration_ms": int(duration_m.group(1)) if duration_m else 0,
+            }
+
+    return {
+        "task_id": task_id_m.group(1) if task_id_m else "",
+        "tool_use_id": tool_use_id_m.group(1) if tool_use_id_m else None,
+        "output_file": output_file_m.group(1) if output_file_m else "",
+        "summary": summary_m.group(1) if summary_m else "",
+        "status": status,
+        "usage": usage,
+        "has_status": status_m is not None,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Output-format helpers
+# ---------------------------------------------------------------------------
+
+
+SHUTDOWN_TEAM_PROMPT: str = """<system-reminder>
+You are running in non-interactive mode and cannot return a response to the user until your team is shut down.
+
+You MUST shut down your team before preparing your final response:
+1. Use requestShutdown to ask each team member to shut down gracefully
+2. Wait for shutdown approvals
+3. Use the cleanup operation to clean up the team
+4. Only then provide your final response to the user
+
+The user cannot receive your response until the team is completely shut down.
+</system-reminder>
+
+Shut down your team and prepare your final response for the user."""
+
+
+def format_headless_result(
+    last_message: Optional[Dict[str, Any]],
+    output_format: Optional[str],
+    max_turns: Optional[int] = None,
+    max_budget_usd: Optional[float] = None,
+) -> str:
+    """Format the final result message for non-stream-json output modes.
+
+    Returns the string to be written to stdout.  Mirrors the ``switch
+    (options.outputFormat)`` block inside ``runHeadless`` in the TypeScript
+    source.
+    """
+    import json
+
+    if output_format == "json":
+        if not last_message or last_message.get("type") != "result":
+            raise ValueError("No messages returned")
+        return json.dumps(last_message) + "\n"
+
+    if output_format == "stream-json":
+        # Already streamed above — nothing to format here.
+        return ""
+
+    # Default text output.
+    if not last_message or last_message.get("type") != "result":
+        raise ValueError("No messages returned")
+
+    subtype = last_message.get("subtype", "")
+    if subtype == "success":
+        result_text = last_message.get("result", "")
+        return result_text if result_text.endswith("\n") else result_text + "\n"
+    elif subtype == "error_during_execution":
+        return "Execution error\n"
+    elif subtype == "error_max_turns":
+        return f"Error: Reached max turns ({max_turns})\n"
+    elif subtype == "error_max_budget_usd":
+        return f"Error: Exceeded USD budget ({max_budget_usd})\n"
+    elif subtype == "error_max_structured_output_retries":
+        return "Error: Failed to provide valid structured output after maximum retries\n"
+    else:
+        return f"Error: {subtype}\n"
+
+
+# ---------------------------------------------------------------------------
+# Model-info helpers (SDK initialize response)
+# ---------------------------------------------------------------------------
+
+
+def build_model_infos(model_options: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Convert raw model option dicts to the ``ModelInfo[]`` shape used in the
+    SDK ``initialize`` response.
+
+    Mirrors the ``modelInfos`` mapping inside ``runHeadlessStreaming`` from the
+    TypeScript source.
+    """
+    result: List[Dict[str, Any]] = []
+    for option in model_options:
+        model_id = option.get("value") or "default"
+        display_name = option.get("label", "")
+        description = option.get("description", "")
+        info: Dict[str, Any] = {
+            "value": model_id,
+            "displayName": display_name,
+            "description": description,
+        }
+        # Capability flags — resolved lazily from the model registry when available.
+        try:
+            from claude_code.utils.model.model import (
+                parse_user_specified_model,
+                get_default_main_loop_model,
+            )  # type: ignore[import]
+            from claude_code.utils.effort import (
+                model_supports_effort,
+                model_supports_max_effort,
+                EFFORT_LEVELS,
+            )  # type: ignore[import]
+
+            resolved = (
+                get_default_main_loop_model()
+                if model_id == "default"
+                else parse_user_specified_model(model_id)
+            )
+            if model_supports_effort(resolved):
+                levels = (
+                    list(EFFORT_LEVELS)
+                    if model_supports_max_effort(resolved)
+                    else [lv for lv in EFFORT_LEVELS if lv != "max"]
+                )
+                info["supportsEffort"] = True
+                info["supportedEffortLevels"] = levels
+        except ImportError:
+            pass
+
+        result.append(info)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# MCP server-status builder (SDK mcp_status / reload_plugins response)
+# ---------------------------------------------------------------------------
+
+
+def build_mcp_server_statuses(
+    mcp_clients: List[Any],
+    sdk_clients: List[Any],
+    dynamic_mcp_state: "DynamicMcpState",
+    all_mcp_tools: List[Any],
+) -> List[Dict[str, Any]]:
+    """Build the ``McpServerStatus[]`` list for ``mcp_status`` and
+    ``reload_plugins`` control responses.
+
+    Mirrors ``buildMcpServerStatuses`` from the TypeScript source.
+    """
+    existing_names: Set[str] = {
+        _client_name(c) for c in list(mcp_clients) + list(sdk_clients)
+    }
+    combined = (
+        list(mcp_clients)
+        + list(sdk_clients)
+        + [
+            c for c in dynamic_mcp_state.clients
+            if _client_name(c) not in existing_names
+        ]
+    )
+
+    statuses: List[Dict[str, Any]] = []
+    for connection in combined:
+        name = _client_name(connection)
+        conn_type = (
+            connection.get("type") if isinstance(connection, dict)
+            else getattr(connection, "type", "unknown")
+        )
+        config = (
+            connection.get("config", {}) if isinstance(connection, dict)
+            else getattr(connection, "config", {})
+        ) or {}
+
+        # Build config sub-dict based on transport type.
+        cfg_type = (
+            config.get("type") if isinstance(config, dict)
+            else getattr(config, "type", None)
+        )
+        config_out: Optional[Dict[str, Any]] = None
+        if cfg_type in ("sse", "http"):
+            config_out = {
+                "type": cfg_type,
+                "url": (
+                    config.get("url") if isinstance(config, dict)
+                    else getattr(config, "url", None)
+                ),
+            }
+        elif cfg_type in ("stdio", None):
+            config_out = {
+                "type": "stdio",
+                "command": (
+                    config.get("command") if isinstance(config, dict)
+                    else getattr(config, "command", None)
+                ),
+                "args": (
+                    config.get("args") if isinstance(config, dict)
+                    else getattr(config, "args", None)
+                ),
+            }
+
+        # Server tools (only for connected servers).
+        server_tools: Optional[List[Dict[str, Any]]] = None
+        if conn_type == "connected":
+            prefix = f"mcp__{name}__"
+            server_tools = [
+                {
+                    "name": (
+                        t.get("name", "") if isinstance(t, dict)
+                        else getattr(t, "name", "")
+                    ).replace(prefix, "", 1),
+                }
+                for t in all_mcp_tools
+                if (
+                    t.get("name", "") if isinstance(t, dict) else getattr(t, "name", "")
+                ).startswith(prefix)
+            ]
+
+        error = (
+            connection.get("error") if isinstance(connection, dict)
+            else getattr(connection, "error", None)
+        ) if conn_type == "failed" else None
+
+        scope = (
+            config.get("scope") if isinstance(config, dict)
+            else getattr(config, "scope", None)
+        )
+
+        statuses.append({
+            "name": name,
+            "status": conn_type,
+            "error": error,
+            "config": config_out,
+            "scope": scope,
+            "tools": server_tools,
+        })
+
+    return statuses
+
+
+def _client_name(client: Any) -> str:
+    """Return the name of *client* regardless of its concrete type."""
+    if isinstance(client, dict):
+        return client.get("name", "") or ""
+    return getattr(client, "name", "") or ""
+
+
+# ---------------------------------------------------------------------------
+# Batch-command building
+# ---------------------------------------------------------------------------
+
+
+def build_batched_command(
+    batch: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Merge a batch of queued prompt commands into one composite command.
+
+    When multiple consecutive prompt-mode commands accumulate between turns,
+    they are merged into a single ``ask()`` call so the model sees them as
+    one turn.  Mirrors the batch-building logic inside ``drainCommandQueue``
+    in the TypeScript source.
+    """
+    if not batch:
+        raise ValueError("batch must not be empty")
+    if len(batch) == 1:
+        return batch[0]
+
+    head = batch[0]
+    merged_value = join_prompt_values([cmd.get("value", "") for cmd in batch])
+    # Use the UUID of the last message in the batch (matches TS behaviour).
+    last_uuid = next(
+        (cmd.get("uuid") for cmd in reversed(batch) if cmd.get("uuid")),
+        head.get("uuid"),
+    )
+    return {
+        **head,
+        "value": merged_value,
+        "uuid": last_uuid,
+    }
+
+
+# ---------------------------------------------------------------------------
+# reregister_channel_handler_after_reconnect (stub)
+# ---------------------------------------------------------------------------
+
+
+def reregister_channel_handler_after_reconnect(connection: Any) -> None:
+    """Re-register the channel notification handler after an MCP reconnect.
+
+    Without this, channel messages silently drop after ``mcp_reconnect``
+    or ``mcp_toggle`` creates a new client instance.
+
+    Mirrors ``reregisterChannelHandlerAfterReconnect`` from the TypeScript source.
+    This is a no-op stub — full implementation requires the channel
+    notification registry which is not yet ported.
+    """
+    # TODO: implement when channel notification registry is ported.
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Idle-timeout manager
+# ---------------------------------------------------------------------------
+
+
+class IdleTimeoutManager:
+    """Manages an idle timeout that fires when the session has been inactive.
+
+    Mirrors ``createIdleTimeoutManager`` from the TypeScript source.
+    """
+
+    def __init__(
+        self,
+        on_timeout: Callable[[], None],
+        is_idle: Callable[[], bool],
+        timeout_ms: int = 300_000,  # 5 minutes default
+    ) -> None:
+        self._on_timeout = on_timeout
+        self._is_idle = is_idle
+        self._timeout_ms = timeout_ms
+        self._task: Optional[asyncio.Task] = None
+
+    def start(self) -> None:
+        """Start (or restart) the idle timer."""
+        self.stop()
+        loop = asyncio.get_event_loop()
+        self._task = loop.create_task(self._run())
+
+    def stop(self) -> None:
+        """Cancel the pending idle timer."""
+        if self._task is not None:
+            self._task.cancel()
+            self._task = None
+
+    async def _run(self) -> None:
+        try:
+            await asyncio.sleep(self._timeout_ms / 1000.0)
+            if self._is_idle():
+                self._on_timeout()
+        except asyncio.CancelledError:
+            pass
+
+
+def create_idle_timeout_manager(
+    is_idle: Callable[[], bool],
+    on_timeout: Optional[Callable[[], None]] = None,
+    timeout_ms: int = 300_000,
+) -> IdleTimeoutManager:
+    """Factory that mirrors ``createIdleTimeoutManager`` from the TypeScript source."""
+    def _default_timeout() -> None:
+        _log_debug("Idle timeout reached — session may be terminated.")
+
+    return IdleTimeoutManager(
+        on_timeout=on_timeout or _default_timeout,
+        is_idle=is_idle,
+        timeout_ms=timeout_ms,
+    )

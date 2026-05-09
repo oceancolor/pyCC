@@ -1,46 +1,33 @@
 """
-team_memory_ops.py - Team memory file operation utilities.
+Team Memory Operations Utilities
 
-Ported from teamMemoryOps.ts.
-
-Provides helpers for checking whether tool calls target team memory files,
-and for building summary text about team memory operations.
-
-The `is_team_mem_file` function is a stub — the real implementation checks
-against a configured team memory directory path.
+Helper functions for identifying and summarizing team memory tool use.
+Mirrors teamMemoryOps.ts.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-# Tool name constants (mirrors TS imports from tool constants files)
-FILE_EDIT_TOOL_NAME = "str_replace_based_edit_tool"
-FILE_WRITE_TOOL_NAME = "write_file"
+from claude_code.memdir.team_mem_paths import is_team_mem_file
+from claude_code.tools.file_edit_tool.constants import FILE_EDIT_TOOL_NAME
+from claude_code.tools.file_write_tool.prompt import FILE_WRITE_TOOL_NAME
 
-# Team memory directory marker — real impl reads from config / memdir
-_TEAM_MEM_DIR_MARKER = ".claude/team_memory"
-
-
-def is_team_mem_file(path: str) -> bool:
-    """
-    Return True if *path* refers to a team memory file.
-
-    Stub: matches any path containing the team memory directory marker.
-    Production code should check against the configured memdir path.
-    """
-    return _TEAM_MEM_DIR_MARKER in path
+__all__ = [
+    "is_team_mem_file",
+    "is_team_memory_search",
+    "is_team_memory_write_or_edit",
+    "append_team_memory_summary_parts",
+]
 
 
 def is_team_memory_search(tool_input: Any) -> bool:
     """
-    Return True if a search tool-use targets team memory files.
-
-    Examines the ``path``, ``pattern``, or ``glob`` field of *tool_input*.
+    Check if a search tool use targets team memory files by examining its path.
     """
-    if not isinstance(tool_input, dict):
+    if not tool_input or not isinstance(tool_input, dict):
         return False
-    path: Optional[str] = tool_input.get("path") or tool_input.get("pattern") or tool_input.get("glob")
+    path = tool_input.get("path")
     if path and is_team_mem_file(path):
         return True
     return False
@@ -48,51 +35,56 @@ def is_team_memory_search(tool_input: Any) -> bool:
 
 def is_team_memory_write_or_edit(tool_name: str, tool_input: Any) -> bool:
     """
-    Return True if a Write or Edit tool-use targets a team memory file.
+    Check if a Write or Edit tool use targets a team memory file.
     """
     if tool_name not in (FILE_WRITE_TOOL_NAME, FILE_EDIT_TOOL_NAME):
         return False
-    if not isinstance(tool_input, dict):
+    if not tool_input or not isinstance(tool_input, dict):
         return False
-    file_path: Optional[str] = tool_input.get("file_path") or tool_input.get("path")
+    file_path: str | None = tool_input.get("file_path") or tool_input.get("path")
     return file_path is not None and is_team_mem_file(file_path)
 
 
 def append_team_memory_summary_parts(
-    memory_counts: Dict[str, int],
+    memory_counts: dict[str, int],
     is_active: bool,
-    parts: List[str],
+    parts: list[str],
 ) -> None:
     """
-    Append human-readable team memory summary fragments to *parts*.
+    Append team memory summary parts to the parts array.
+    Encapsulates all team memory verb/string logic for get_search_read_summary_text.
 
     Args:
-        memory_counts: Dict with optional keys ``teamMemoryReadCount``,
-                       ``teamMemorySearchCount``, ``teamMemoryWriteCount``.
-        is_active:     True → use present-participle verbs ("Recalling");
-                       False → use past-tense ("Recalled").
-        parts:         Mutable list; fragments are appended in-place.
+        memory_counts: Dict with optional keys:
+            - teamMemoryReadCount
+            - teamMemorySearchCount
+            - teamMemoryWriteCount
+        is_active: Whether the action is currently in progress (affects verb tense).
+        parts: Mutable list to append summary strings into.
     """
-    team_read = memory_counts.get("teamMemoryReadCount", 0)
-    team_search = memory_counts.get("teamMemorySearchCount", 0)
-    team_write = memory_counts.get("teamMemoryWriteCount", 0)
+    team_read_count: int = memory_counts.get("teamMemoryReadCount", 0) or 0
+    team_search_count: int = memory_counts.get("teamMemorySearchCount", 0) or 0
+    team_write_count: int = memory_counts.get("teamMemoryWriteCount", 0) or 0
 
-    def _verb(active_word: str, past_word: str) -> str:
-        first = len(parts) == 0
+    if team_read_count > 0:
         if is_active:
-            return active_word if first else active_word.lower()
-        return past_word if first else past_word.lower()
+            verb = "Recalling" if len(parts) == 0 else "recalling"
+        else:
+            verb = "Recalled" if len(parts) == 0 else "recalled"
+        memory_word = "memory" if team_read_count == 1 else "memories"
+        parts.append(f"{verb} {team_read_count} team {memory_word}")
 
-    if team_read > 0:
-        verb = _verb("Recalling", "Recalled")
-        mem_word = "memory" if team_read == 1 else "memories"
-        parts.append(f"{verb} {team_read} team {mem_word}")
-
-    if team_search > 0:
-        verb = _verb("Searching", "Searched")
+    if team_search_count > 0:
+        if is_active:
+            verb = "Searching" if len(parts) == 0 else "searching"
+        else:
+            verb = "Searched" if len(parts) == 0 else "searched"
         parts.append(f"{verb} team memories")
 
-    if team_write > 0:
-        verb = _verb("Writing", "Wrote")
-        mem_word = "memory" if team_write == 1 else "memories"
-        parts.append(f"{verb} {team_write} team {mem_word}")
+    if team_write_count > 0:
+        if is_active:
+            verb = "Writing" if len(parts) == 0 else "writing"
+        else:
+            verb = "Wrote" if len(parts) == 0 else "wrote"
+        memory_word = "memory" if team_write_count == 1 else "memories"
+        parts.append(f"{verb} {team_write_count} team {memory_word}")

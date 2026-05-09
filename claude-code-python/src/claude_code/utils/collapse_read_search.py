@@ -24,6 +24,8 @@ from claude_code.constants.tools import (
     REPL_TOOL_NAME,
     TOOL_SEARCH_TOOL_NAME,
 )
+from claude_code.tools.bash_tool.comment_label import extract_bash_comment_label
+from claude_code.tools.shared.git_operation_tracking import detect_git_operation
 from claude_code.utils.memory_file_detection import (
     is_auto_managed_memory_file,
     is_auto_managed_memory_pattern,
@@ -116,6 +118,11 @@ class CollapsedReadSearchGroup:
     hook_count: int = 0
     hook_infos: List[Dict[str, Any]] = field(default_factory=list)
     relevant_memories: Optional[List[Dict[str, Any]]] = None
+    # Git operations detected in bash results (fullscreen mode)
+    commits: Optional[List[Dict[str, Any]]] = None
+    pushes: Optional[List[Dict[str, Any]]] = None
+    branches: Optional[List[Dict[str, Any]]] = None
+    prs: Optional[List[Dict[str, Any]]] = None
     # Team memory (optional)
     team_memory_search_count: Optional[int] = None
     team_memory_read_count: Optional[int] = None
@@ -143,6 +150,12 @@ class _GroupAccumulator:
     mcp_server_names: Set[str] = field(default_factory=set)
     bash_count: int = 0
     bash_commands: Dict[str, str] = field(default_factory=dict)
+    # Git operations detected from bash results (fullscreen mode)
+    commits: List[Dict[str, Any]] = field(default_factory=list)
+    pushes: List[Dict[str, Any]] = field(default_factory=list)
+    branches: List[Dict[str, Any]] = field(default_factory=list)
+    prs: List[Dict[str, Any]] = field(default_factory=list)
+    git_op_bash_count: int = 0
     hook_total_ms: int = 0
     hook_count: int = 0
     hook_infos: List[Dict[str, Any]] = field(default_factory=list)
@@ -190,6 +203,57 @@ def _command_as_hint(command: str) -> str:
 # ---------------------------------------------------------------------------
 # Memory search/write detection
 # ---------------------------------------------------------------------------
+
+
+def _scan_bash_result_for_git_ops(
+    msg: Dict[str, Any],
+    group: "_GroupAccumulator",
+) -> None:
+    """
+    Scan a bash tool result for commit SHAs and PR URLs and push them into
+    the group accumulator. Called only for results whose tool_use_id was
+    recorded in bash_commands (non-search/read bash).
+
+    git push writes the ref update to stderr — so both streams are combined.
+    """
+    if msg.get("type") != "user":
+        return
+    out = msg.get("toolUseResult")
+    if not isinstance(out, dict):
+        return
+    stdout = out.get("stdout") or ""
+    stderr = out.get("stderr") or ""
+    if not stdout and not stderr:
+        return
+    combined = stdout + "\n" + stderr
+    content_list = msg.get("message", {}).get("content", [])
+    if not isinstance(content_list, list):
+        return
+    for block in content_list:
+        if not isinstance(block, dict) or block.get("type") != "tool_result":
+            continue
+        tool_use_id = block.get("tool_use_id")
+        if not tool_use_id:
+            continue
+        command = group.bash_commands.get(tool_use_id)
+        if not command:
+            continue
+        git_result = detect_git_operation(command, combined)
+        commit = git_result.get("commit")
+        push = git_result.get("push")
+        branch = git_result.get("branch")
+        pr = git_result.get("pr")
+        if commit:
+            group.commits.append(dict(commit))
+        if push:
+            group.pushes.append(dict(push))
+        if branch:
+            group.branches.append(dict(branch))
+        if pr:
+            group.prs.append(dict(pr))
+        if commit or push or branch or pr:
+            group.git_op_bash_count += 1
+
 
 def _is_memory_search(tool_input: Any) -> bool:
     """Check if a search tool targets memory files."""
@@ -493,7 +557,9 @@ def collapse_read_search_groups(
                 inp = tool_info.get("input") or {}
                 if isinstance(inp, dict) and inp.get("command"):
                     cmd = inp["command"]
-                    current_group.latest_display_hint = _command_as_hint(cmd)
+                    current_group.latest_display_hint = (
+                        extract_bash_comment_label(cmd) or _command_as_hint(cmd)
+                    )
                     for tid in _get_tool_use_ids_from_message(msg):
                         current_group.bash_commands[tid] = cmd
 
@@ -538,6 +604,9 @@ def collapse_read_search_groups(
 
         elif _is_collapsible_tool_result(msg, current_group.tool_use_ids):
             current_group.messages.append(msg)
+            # Scan bash results for commit SHAs / PR URLs to surface in summary
+            if _is_fullscreen_env_enabled() and current_group.bash_commands:
+                _scan_bash_result_for_git_ops(msg, current_group)
 
         elif (
             current_group.messages
@@ -961,7 +1030,15 @@ def _create_collapsed_group(group: _GroupAccumulator) -> CollapsedReadSearchGrou
 
     if _is_fullscreen_env_enabled() and group.bash_count > 0:
         collapsed.bash_count = group.bash_count
-        collapsed.git_op_bash_count = 0
+        collapsed.git_op_bash_count = group.git_op_bash_count
+    if group.commits:
+        collapsed.commits = list(group.commits)
+    if group.pushes:
+        collapsed.pushes = list(group.pushes)
+    if group.branches:
+        collapsed.branches = list(group.branches)
+    if group.prs:
+        collapsed.prs = list(group.prs)
 
     if group.hook_count > 0:
         collapsed.hook_total_ms = group.hook_total_ms

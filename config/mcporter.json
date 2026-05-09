@@ -39,6 +39,17 @@
       "headers": {
         "Authorization": "Bearer 895df7c2dd0b88650c328bb6c318f9fa"
       }
+    },
+    "itfs": {
+      "command": "itfscli",
+      "args": [
+        "mcp-server",
+        "--base-url",
+        "https://itfs.mcp.it.woa.com"
+      ],
+      "env": {
+        "ITFS_TAI_TOKEN": "tai_pat_hEWza5O5oVnPHU8MmOb3OzTJjqb6hQB6JDu8WAn5kkI.4DPSlxUQYneCAe2-z5MDDCdTFR6N24Jz4RtMVMKbhAc"
+      }
     }
   },
   "imports": []

@@ -1,3 +1,4 @@
+# 原始 TS: utils/slashCommandParsing.ts
 """
 Slash command parsing utilities.
 Port of utils/slashCommandParsing.ts

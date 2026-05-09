@@ -5,12 +5,15 @@ Implements: queryHaiku, queryWithModel, queryModelWithoutStreaming,
 """
 from __future__ import annotations
 import asyncio
+import logging
 import os
-from typing import Any, AsyncIterator, Dict, List, Optional, TypedDict
+from typing import Any, AsyncGenerator, AsyncIterator, Dict, List, Optional, TypedDict, Union
 
 from claude_code.services.api.client import get_anthropic_client
 from claude_code.services.api.with_retry import with_api_retry
 from claude_code.utils.model.model import get_small_fast_model
+
+log = logging.getLogger(__name__)
 
 
 class QueryOptions(TypedDict, total=False):
@@ -28,41 +31,217 @@ class AssistantMessage(TypedDict, total=False):
     content: Any
     stop_reason: Optional[str]
     usage: dict
+    request_id: Optional[str]
+    type: str
+    uuid: str
+    timestamp: str
 
 
-def get_extra_body_params(beta_headers: Optional[list] = None) -> dict:
-    params: dict = {}
-    if beta_headers:
-        params["betas"] = beta_headers
-    return params
+class NonNullableUsage(TypedDict, total=False):
+    """Full usage structure matching TS NonNullableUsage interface."""
+    input_tokens: int
+    cache_creation_input_tokens: int
+    cache_read_input_tokens: int
+    output_tokens: int
+    server_tool_use: Dict[str, int]  # {web_search_requests, web_fetch_requests}
+    service_tier: str
+    cache_creation: Dict[str, int]  # {ephemeral_1h_input_tokens, ephemeral_5m_input_tokens}
+    inference_geo: str
+    iterations: list
+    speed: str
 
 
 def get_prompt_caching_enabled(model: str) -> bool:
-    """Check if prompt caching should be enabled for this model."""
-    if os.environ.get("DISABLE_PROMPT_CACHING"):
+    """
+    Check if prompt caching should be enabled for this model.
+    Mirrors getPromptCachingEnabled from claude.ts — supports per-model disable env vars.
+    """
+    from claude_code.utils.env_utils import is_env_truthy
+    # Global disable
+    if is_env_truthy(os.environ.get("DISABLE_PROMPT_CACHING")):
         return False
-    return "haiku" in model.lower() or "sonnet" in model.lower()
+    # Per-model disables
+    if is_env_truthy(os.environ.get("DISABLE_PROMPT_CACHING_HAIKU")):
+        try:
+            small_fast = get_small_fast_model()
+            if model == small_fast:
+                return False
+        except Exception:
+            pass
+    if is_env_truthy(os.environ.get("DISABLE_PROMPT_CACHING_SONNET")):
+        try:
+            from claude_code.utils.model.model import get_default_sonnet_model
+            default_sonnet = get_default_sonnet_model()
+            if model == default_sonnet:
+                return False
+        except Exception:
+            pass
+    if is_env_truthy(os.environ.get("DISABLE_PROMPT_CACHING_OPUS")):
+        try:
+            from claude_code.utils.model.model import get_default_opus_model
+            default_opus = get_default_opus_model()
+            if model == default_opus:
+                return False
+        except Exception:
+            pass
+    return True
 
 
-def build_system_prompt_blocks(system_prompt: List[str]) -> list:
-    """Build API-format system prompt blocks from string list."""
-    return [{"type": "text", "text": s} for s in system_prompt if s]
+def build_system_prompt_blocks(
+    system_prompt: Union[List[str], str],
+    enable_prompt_caching: bool = False,
+    options: Optional[dict] = None,
+) -> list:
+    """
+    Build API-format system prompt blocks from a string list.
+
+    Extended signature matches buildSystemPromptBlocks from claude.ts:
+      - enable_prompt_caching: whether to add cache_control markers
+      - options: {skip_global_cache_for_system_prompt, query_source}
+    """
+    if isinstance(system_prompt, str):
+        system_prompt = [system_prompt] if system_prompt else []
+
+    opts = options or {}
+    skip_global = opts.get("skip_global_cache_for_system_prompt", False)
+    query_source = opts.get("query_source")
+
+    blocks = []
+    for s in system_prompt:
+        if not s:
+            continue
+        block: dict = {"type": "text", "text": s}
+        if enable_prompt_caching and not skip_global:
+            block["cache_control"] = get_cache_control(query_source=query_source)
+        blocks.append(block)
+    return blocks
 
 
-def update_usage(current: dict, delta: dict) -> dict:
-    """Merge usage delta into current usage totals."""
+def _EMPTY_NON_NULLABLE_USAGE() -> dict:
+    """Return a zeroed NonNullableUsage dict (matches EMPTY_USAGE from logging.ts)."""
+    return {
+        "input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 0,
+        "server_tool_use": {"web_search_requests": 0, "web_fetch_requests": 0},
+        "service_tier": "standard",
+        "cache_creation": {
+            "ephemeral_1h_input_tokens": 0,
+            "ephemeral_5m_input_tokens": 0,
+        },
+        "inference_geo": "",
+        "iterations": [],
+        "speed": "standard",
+    }
+
+
+def update_usage(current: dict, delta: Optional[dict]) -> dict:
+    """
+    Update usage statistics with new values from streaming API events.
+
+    Mirrors updateUsage from claude.ts.  Input-related tokens are only updated
+    when the incoming value is > 0 (message_delta may send explicit 0s for
+    fields already set in message_start).
+    """
+    if not delta:
+        return dict(current)
+
+    def _positive(val: Any) -> bool:
+        return val is not None and val > 0
+
     result = dict(current)
-    for key in ("input_tokens", "output_tokens", "cache_creation_input_tokens",
-                "cache_read_input_tokens"):
-        result[key] = result.get(key, 0) + delta.get(key, 0)
+
+    # Input tokens: only update when explicitly positive
+    if _positive(delta.get("input_tokens")):
+        result["input_tokens"] = delta["input_tokens"]
+    if _positive(delta.get("cache_creation_input_tokens")):
+        result["cache_creation_input_tokens"] = delta["cache_creation_input_tokens"]
+    if _positive(delta.get("cache_read_input_tokens")):
+        result["cache_read_input_tokens"] = delta["cache_read_input_tokens"]
+
+    # Output tokens: always take latest value
+    if delta.get("output_tokens") is not None:
+        result["output_tokens"] = delta["output_tokens"]
+
+    # server_tool_use (nested)
+    delta_stu = delta.get("server_tool_use", {})
+    cur_stu = result.get("server_tool_use", {"web_search_requests": 0, "web_fetch_requests": 0})
+    result["server_tool_use"] = {
+        "web_search_requests": delta_stu.get("web_search_requests") or cur_stu.get("web_search_requests", 0),
+        "web_fetch_requests": delta_stu.get("web_fetch_requests") or cur_stu.get("web_fetch_requests", 0),
+    }
+
+    # service_tier: keep current unless delta provides one
+    if delta.get("service_tier"):
+        result["service_tier"] = delta["service_tier"]
+    elif "service_tier" not in result:
+        result["service_tier"] = "standard"
+
+    # cache_creation (nested)
+    delta_cc = delta.get("cache_creation", {})
+    cur_cc = result.get("cache_creation", {"ephemeral_1h_input_tokens": 0, "ephemeral_5m_input_tokens": 0})
+    result["cache_creation"] = {
+        "ephemeral_1h_input_tokens": delta_cc.get("ephemeral_1h_input_tokens") or cur_cc.get("ephemeral_1h_input_tokens", 0),
+        "ephemeral_5m_input_tokens": delta_cc.get("ephemeral_5m_input_tokens") or cur_cc.get("ephemeral_5m_input_tokens", 0),
+    }
+
+    # inference_geo, iterations, speed: use latest
+    if delta.get("inference_geo") is not None:
+        result["inference_geo"] = delta["inference_geo"]
+    if delta.get("iterations") is not None:
+        result["iterations"] = delta["iterations"]
+    if delta.get("speed") is not None:
+        result["speed"] = delta["speed"]
+
     return result
 
 
-def accumulate_usage(usages: List[dict]) -> dict:
-    total: dict = {}
-    for u in usages:
-        total = update_usage(total, u)
-    return total
+def accumulate_usage(total_usage: dict, message_usage: dict) -> dict:
+    """
+    Accumulate usage from one message into a total usage object.
+    Mirrors accumulateUsage from claude.ts — sums token counts, uses latest
+    for tier/geo/iterations/speed.
+    """
+    return {
+        "input_tokens": total_usage.get("input_tokens", 0) + message_usage.get("input_tokens", 0),
+        "cache_creation_input_tokens": (
+            total_usage.get("cache_creation_input_tokens", 0)
+            + message_usage.get("cache_creation_input_tokens", 0)
+        ),
+        "cache_read_input_tokens": (
+            total_usage.get("cache_read_input_tokens", 0)
+            + message_usage.get("cache_read_input_tokens", 0)
+        ),
+        "output_tokens": (
+            total_usage.get("output_tokens", 0)
+            + message_usage.get("output_tokens", 0)
+        ),
+        "server_tool_use": {
+            "web_search_requests": (
+                total_usage.get("server_tool_use", {}).get("web_search_requests", 0)
+                + message_usage.get("server_tool_use", {}).get("web_search_requests", 0)
+            ),
+            "web_fetch_requests": (
+                total_usage.get("server_tool_use", {}).get("web_fetch_requests", 0)
+                + message_usage.get("server_tool_use", {}).get("web_fetch_requests", 0)
+            ),
+        },
+        "service_tier": message_usage.get("service_tier", total_usage.get("service_tier", "standard")),
+        "cache_creation": {
+            "ephemeral_1h_input_tokens": (
+                total_usage.get("cache_creation", {}).get("ephemeral_1h_input_tokens", 0)
+                + message_usage.get("cache_creation", {}).get("ephemeral_1h_input_tokens", 0)
+            ),
+            "ephemeral_5m_input_tokens": (
+                total_usage.get("cache_creation", {}).get("ephemeral_5m_input_tokens", 0)
+                + message_usage.get("cache_creation", {}).get("ephemeral_5m_input_tokens", 0)
+            ),
+        },
+        "inference_geo": message_usage.get("inference_geo", total_usage.get("inference_geo", "")),
+        "iterations": message_usage.get("iterations", total_usage.get("iterations", [])),
+        "speed": message_usage.get("speed", total_usage.get("speed", "standard")),
+    }
 
 
 async def query_model_without_streaming(
@@ -168,65 +347,294 @@ async def query_with_model(
     )
 
 
-async def verify_api_key(api_key: str) -> bool:
-    """Verify an API key by making a minimal test request."""
+async def verify_api_key(api_key: str, is_non_interactive_session: bool = False) -> bool:
+    """
+    Verify an API key by making a minimal test request.
+    Mirrors verifyApiKey from claude.ts: skips verification in non-interactive mode.
+    """
+    if is_non_interactive_session:
+        return True
     try:
         client = await get_anthropic_client(api_key=api_key, max_retries=0)
+        model = get_small_fast_model()
         await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: client.messages.create(
-                model=get_small_fast_model(),
+                model=model,
                 max_tokens=1,
-                messages=[{"role": "user", "content": "hi"}],
+                messages=[{"role": "user", "content": "test"}],
+                temperature=1,
+                metadata=get_api_metadata(),
+                **get_extra_body_params(),
             )
         )
         return True
-    except Exception:
-        return False
+    except Exception as e:
+        msg = str(e)
+        if 'authentication_error' in msg and 'invalid x-api-key' in msg:
+            return False
+        raise
 
 
 def get_api_metadata() -> dict:
+    """
+    Assemble API metadata dict sent with every request.
+    Mirrors getAPIMetadata from claude.ts.
+    Reads CLAUDE_CODE_EXTRA_METADATA env var for additional fields.
+    """
+    extra: dict = {}
+    extra_str = os.environ.get("CLAUDE_CODE_EXTRA_METADATA")
+    if extra_str:
+        try:
+            import json as _jm
+            parsed = _jm.loads(extra_str)
+            if isinstance(parsed, dict):
+                extra = parsed
+            else:
+                log.error(
+                    "CLAUDE_CODE_EXTRA_METADATA must be a JSON object, got: %s",
+                    extra_str,
+                )
+        except (ValueError, Exception) as exc:
+            log.error("Error parsing CLAUDE_CODE_EXTRA_METADATA: %s", exc)
+
+    try:
+        from claude_code.utils.config import get_or_create_user_id
+        device_id = get_or_create_user_id()
+    except Exception:
+        device_id = ""
+
+    session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    account_uuid = ""
+
+    import json as _json
+    user_id_payload = {**extra, "device_id": device_id, "account_uuid": account_uuid, "session_id": session_id}
     return {
-        "user_agent": os.environ.get("CLAUDE_CODE_USER_AGENT", "ClaudeCode/1.0"),
-        "session_id": os.environ.get("CLAUDE_CODE_SESSION_ID", ""),
+        "user_id": _json.dumps(user_id_payload, separators=(",", ":")),
     }
 
 
-async def query_model_with_streaming(
+async def query_model_with_streaming(  # type: ignore[override]
     messages: List[dict],
     system_prompt: Optional[List[str]] = None,
     tools: Optional[list] = None,
     options: Optional[QueryOptions] = None,
     signal: Any = None,
-) -> AsyncIterator[dict]:
-    """Stream response from Claude API."""
+) -> AsyncGenerator[dict, None]:
+    """
+    Stream response from Claude API with retry and non-streaming fallback.
+
+    Yields dicts of the form:
+      {"type": "stream_event", "event": <raw_event>}
+      {"type": "assistant", ...}   — assembled assistant message (on content_block_stop)
+      {"type": "error", "error": <str>}
+
+    This is a simplified Python equivalent of the full queryModel generator from
+    claude.ts.  The streaming watchdog, GrowthBook feature flags, and first-party
+    analytics are omitted; the core retry/fallback loop is faithfully reproduced.
+    """
     opts = options or {}
     model = opts.get("model") or get_small_fast_model()
-    max_tokens = opts.get("max_tokens", 4096)
+    max_tokens = opts.get("max_tokens", get_max_output_tokens_for_model(model))
     max_retries = opts.get("max_retries", 2)
-    system = build_system_prompt_blocks(system_prompt or [])
+    source = opts.get("source", "stream")
+    enable_prompt_caching = opts.get("enable_prompt_caching", get_prompt_caching_enabled(model))
 
-    client = await get_anthropic_client(max_retries=max_retries)
-    kwargs: dict = {
+    system = build_system_prompt_blocks(system_prompt or [], enable_prompt_caching=enable_prompt_caching)
+
+    params: dict = {
         "model": model,
         "max_tokens": max_tokens,
         "messages": messages,
-        "stream": True,
     }
     if system:
-        kwargs["system"] = system
+        params["system"] = system
     if tools:
-        kwargs["tools"] = tools
+        params["tools"] = tools
+    extra = get_extra_body_params()
+    params.update(extra)
 
+    loop = asyncio.get_event_loop()
+    content_blocks: dict = {}
+    usage = _EMPTY_NON_NULLABLE_USAGE()
+    partial_message: Optional[dict] = None
+    stop_reason: Optional[str] = None
+    new_messages: List[dict] = []
+    stream_obj = None
+
+    async def _cleanup_stream() -> None:
+        nonlocal stream_obj
+        if stream_obj is not None:
+            cleanup_stream(stream_obj)
+            stream_obj = None
+
+    # --- attempt streaming ---
     try:
-        loop = asyncio.get_event_loop()
-        stream = await loop.run_in_executor(
-            None, lambda: client.messages.create(**kwargs)
+        client = await get_anthropic_client(max_retries=0)
+        streaming_params = {**params, "stream": True}
+        stream_obj = await loop.run_in_executor(
+            None, lambda: client.messages.create(**streaming_params)
         )
-        for event in stream:
-            yield {"type": getattr(event, "type", "unknown"), "data": event}
-    except Exception as e:
-        yield {"type": "error", "error": str(e)}
+    except Exception as stream_err:
+        # Streaming endpoint unavailable — fall back to non-streaming
+        log.warning("Streaming unavailable, falling back to non-streaming: %s", stream_err)
+        await _cleanup_stream()
+        try:
+            ns_params = adjust_params_for_non_streaming(params, MAX_NON_STREAMING_TOKENS)
+            client = await get_anthropic_client(max_retries=max_retries)
+            response = await with_api_retry(
+                lambda: loop.run_in_executor(
+                    None,
+                    lambda: client.messages.create(**ns_params),
+                ),
+                max_retries=max_retries,
+                source=source,
+            )
+            content = getattr(response, "content", [])
+            stop_r = getattr(response, "stop_reason", None)
+            usage_obj = getattr(response, "usage", {})
+            if hasattr(usage_obj, "__dict__"):
+                usage_obj = vars(usage_obj)
+            m = {
+                "type": "assistant",
+                "role": "assistant",
+                "content": content,
+                "stop_reason": stop_r,
+                "usage": usage_obj,
+            }
+            yield m
+        except Exception as fb_err:
+            yield {"type": "error", "error": str(fb_err)}
+        return
+
+    # --- process streaming events ---
+    try:
+        for part in stream_obj:
+            part_type = getattr(part, "type", "unknown")
+
+            if part_type == "message_start":
+                msg_data = getattr(part, "message", None)
+                if msg_data is not None:
+                    partial_message = vars(msg_data) if hasattr(msg_data, "__dict__") else dict(msg_data)
+                    raw_usage = getattr(msg_data, "usage", {})
+                    usage_dict = vars(raw_usage) if hasattr(raw_usage, "__dict__") else (raw_usage or {})
+                    usage = update_usage(usage, usage_dict)
+
+            elif part_type == "content_block_start":
+                idx = getattr(part, "index", 0)
+                cb = getattr(part, "content_block", None)
+                if cb is not None:
+                    cb_dict = vars(cb) if hasattr(cb, "__dict__") else dict(cb)
+                    cb_type = cb_dict.get("type", "")
+                    if cb_type == "tool_use":
+                        cb_dict["input"] = ""
+                    elif cb_type == "text":
+                        cb_dict["text"] = ""
+                    elif cb_type == "thinking":
+                        cb_dict["thinking"] = ""
+                        cb_dict["signature"] = ""
+                    content_blocks[idx] = cb_dict
+
+            elif part_type == "content_block_delta":
+                idx = getattr(part, "index", 0)
+                delta = getattr(part, "delta", None)
+                if delta is not None and idx in content_blocks:
+                    delta_type = getattr(delta, "type", "")
+                    cb = content_blocks[idx]
+                    if delta_type == "text_delta":
+                        cb["text"] = cb.get("text", "") + getattr(delta, "text", "")
+                    elif delta_type == "input_json_delta":
+                        cb["input"] = cb.get("input", "") + getattr(delta, "partial_json", "")
+                    elif delta_type == "thinking_delta":
+                        cb["thinking"] = cb.get("thinking", "") + getattr(delta, "thinking", "")
+                    elif delta_type == "signature_delta":
+                        cb["signature"] = getattr(delta, "signature", "")
+
+            elif part_type == "content_block_stop":
+                idx = getattr(part, "index", 0)
+                cb = content_blocks.get(idx)
+                if cb is not None and partial_message is not None:
+                    # Parse tool_use input JSON
+                    if cb.get("type") == "tool_use" and isinstance(cb.get("input"), str):
+                        try:
+                            import json as _j
+                            cb["input"] = _j.loads(cb["input"]) if cb["input"] else {}
+                        except Exception:
+                            pass
+
+                    import uuid as _uuid
+                    m: dict = {
+                        "type": "assistant",
+                        "role": "assistant",
+                        "message": {
+                            **partial_message,
+                            "content": [cb],
+                        },
+                        "uuid": str(_uuid.uuid4()),
+                        "timestamp": __import__('datetime').datetime.utcnow().isoformat() + "Z",
+                    }
+                    new_messages.append(m)
+                    yield m
+
+            elif part_type == "message_delta":
+                raw_usage = getattr(part, "usage", None)
+                if raw_usage is not None:
+                    usage_dict = vars(raw_usage) if hasattr(raw_usage, "__dict__") else dict(raw_usage)
+                    usage = update_usage(usage, usage_dict)
+
+                delta_obj = getattr(part, "delta", None)
+                stop_reason = getattr(delta_obj, "stop_reason", None) if delta_obj else None
+
+                # Write final usage + stop_reason back to last yielded message
+                if new_messages:
+                    last = new_messages[-1]
+                    if "message" in last:
+                        last["message"]["usage"] = usage
+                        last["message"]["stop_reason"] = stop_reason
+
+            yield {"type": "stream_event", "event": part}
+
+        # Guard: if stream completed without any content and no stop reason, try fallback
+        if not partial_message or (not new_messages and not stop_reason):
+            log.error("Stream completed without useful events; attempting non-streaming fallback")
+            raise RuntimeError("Stream ended without receiving any events")
+
+    except Exception as streaming_err:
+        await _cleanup_stream()
+        from claude_code.utils.env_utils import is_env_truthy
+        if is_env_truthy(os.environ.get("CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK")):
+            yield {"type": "error", "error": str(streaming_err)}
+            return
+
+        log.warning("Streaming error, falling back to non-streaming: %s", streaming_err)
+        try:
+            ns_params = adjust_params_for_non_streaming(params, MAX_NON_STREAMING_TOKENS)
+            client = await get_anthropic_client(max_retries=0)
+            response = await with_api_retry(
+                lambda: loop.run_in_executor(
+                    None,
+                    lambda: client.messages.create(**ns_params),
+                ),
+                max_retries=max_retries,
+                source=source,
+            )
+            content = getattr(response, "content", [])
+            stop_r = getattr(response, "stop_reason", None)
+            usage_obj = getattr(response, "usage", {})
+            if hasattr(usage_obj, "__dict__"):
+                usage_obj = vars(usage_obj)
+            m = {
+                "type": "assistant",
+                "role": "assistant",
+                "content": content,
+                "stop_reason": stop_r,
+                "usage": usage_obj,
+            }
+            yield m
+        except Exception as fb_err:
+            yield {"type": "error", "error": str(fb_err)}
+    finally:
+        await _cleanup_stream()
 
 
 # ============================================================================
@@ -843,3 +1251,211 @@ async def execute_non_streaming_request(
         "usage": usage,
         "request_id": originating_request_id,
     }
+
+
+# ===========================================================================
+# cleanup_stream  (line ~2682 in claude.ts)
+# ===========================================================================
+
+def cleanup_stream(stream: Any) -> None:
+    """
+    Clean up stream resources to prevent memory/socket leaks.
+    Mirrors cleanupStream from claude.ts.
+
+    The stream object may be an Anthropic SDK Stream or any object with a
+    ``controller`` attribute that has a ``signal`` property.
+    """
+    if stream is None:
+        return
+    try:
+        controller = getattr(stream, "controller", None)
+        if controller is not None:
+            signal = getattr(controller, "signal", None)
+            aborted = getattr(signal, "aborted", True)
+            if not aborted:
+                controller.abort()
+    except Exception:
+        pass
+
+    # Python httpx / aiohttp streams
+    try:
+        close_fn = getattr(stream, "close", None)
+        if close_fn is not None:
+            close_fn()
+    except Exception:
+        pass
+
+
+# ===========================================================================
+# token_count_from_last_api_response  (utils/tokens.ts line 55)
+# ===========================================================================
+
+def get_token_count_from_usage(usage: dict) -> int:
+    """
+    Calculate total context window tokens from usage dict.
+    Includes input_tokens + cache tokens + output_tokens.
+    Mirrors getTokenCountFromUsage from utils/tokens.ts.
+    """
+    if not usage:
+        return 0
+    return (
+        usage.get("input_tokens", 0)
+        + usage.get("cache_creation_input_tokens", 0)
+        + usage.get("cache_read_input_tokens", 0)
+        + usage.get("output_tokens", 0)
+    )
+
+
+def token_count_from_last_api_response(messages: List[dict]) -> int:
+    """
+    Get total context window token count from the last assistant message
+    that has real (non-zero) usage data.
+
+    Mirrors tokenCountFromLastAPIResponse from utils/tokens.ts.
+    Walks messages in reverse until it finds one with usage.
+    Returns 0 when no messages have usage data.
+    """
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        msg_type = msg.get("type", msg.get("role", ""))
+        if msg_type != "assistant":
+            continue
+
+        # Accept both flat dicts and nested {message: {...}} shapes
+        inner = msg.get("message", msg)
+        usage = inner.get("usage")
+        if not usage:
+            continue
+
+        # Normalise SDK usage objects to plain dicts
+        if hasattr(usage, "__dict__"):
+            usage = vars(usage)
+
+        count = get_token_count_from_usage(usage)
+        if count > 0:
+            return count
+
+    return 0
+
+
+# ===========================================================================
+# configure_effort_params  (line ~444 in claude.ts)
+# ===========================================================================
+
+# Beta header constant (matches src/constants/betas.js)
+EFFORT_BETA_HEADER = "interleaved-thinking-2025-05-14"
+
+
+def configure_effort_params(
+    effort_value: Optional[Any],  # EffortValue = str | float | None
+    output_config: dict,
+    extra_body_params: dict,
+    betas: List[str],
+    model: str,
+) -> None:
+    """
+    Configure effort parameters for an API request.
+    Mirrors configureEffortParams from claude.ts.
+
+    Rules:
+    - If model doesn't support effort OR 'effort' already in output_config: no-op.
+    - effort_value is None  → push EFFORT_BETA_HEADER (model decides)
+    - effort_value is str   → set output_config['effort'] + push header
+    - effort_value is float → ant-only numeric override via anthropic_internal
+    """
+    if not _model_supports_effort(model) or "effort" in output_config:
+        return
+
+    if effort_value is None:
+        if EFFORT_BETA_HEADER not in betas:
+            betas.append(EFFORT_BETA_HEADER)
+    elif isinstance(effort_value, str):
+        output_config["effort"] = effort_value
+        if EFFORT_BETA_HEADER not in betas:
+            betas.append(EFFORT_BETA_HEADER)
+    elif isinstance(effort_value, (int, float)):
+        # Ant-only: numeric override via anthropic_internal
+        if os.environ.get("USER_TYPE") == "ant":
+            existing_internal = extra_body_params.get("anthropic_internal") or {}
+            extra_body_params["anthropic_internal"] = {
+                **existing_internal,
+                "effort_override": effort_value,
+            }
+
+
+def _model_supports_effort(model: str) -> bool:
+    """
+    Simplified effort-support check.
+    Mirrors modelSupportsEffort from utils/effort.ts.
+    Claude 3.7+ sonnet and opus models support effort.
+    """
+    ml = model.lower()
+    # claude-3-7-sonnet and later support effort
+    if "claude-3-7" in ml or "claude-sonnet-4" in ml or "claude-opus-4" in ml:
+        return True
+    # claude-3-5-sonnet also supports effort per the API
+    if "claude-3-5-sonnet" in ml:
+        return True
+    return False
+
+
+# ===========================================================================
+# stream_with_retry / create_with_retry  (pattern from claude.ts withRetry usage)
+# ===========================================================================
+
+async def stream_with_retry(
+    params: dict,
+    source: str = "stream",
+    max_retries: int = 3,
+    fallback_to_non_streaming: bool = True,
+    signal: Any = None,
+) -> AsyncGenerator[dict, None]:
+    """
+    Stream Anthropic API messages with automatic retry.
+    On streaming failure, optionally falls back to non-streaming.
+
+    Yields dicts with keys:
+      - type='stream_event' + event=<raw SDK event>
+      - type='assistant'    + content/usage/stop_reason (on block completion)
+      - type='error'        + error=<str>
+    """
+    async for event in query_model_with_streaming(
+        messages=params.get("messages", []),
+        system_prompt=params.get("system"),
+        tools=params.get("tools"),
+        options={
+            "model": params.get("model", get_small_fast_model()),
+            "max_tokens": params.get("max_tokens", 4096),
+            "max_retries": max_retries,
+            "source": source,
+        },
+        signal=signal,
+    ):
+        yield event
+
+
+async def create_with_retry(
+    params: dict,
+    source: str = "non_streaming",
+    max_retries: int = 3,
+    signal: Any = None,
+) -> dict:
+    """
+    Non-streaming Anthropic API call with automatic retry.
+    Mirrors the withRetry(getClient, async (client) => client.beta.messages.create(...))
+    pattern used throughout claude.ts.
+
+    Returns an AssistantMessage-shaped dict.
+    """
+    return await execute_non_streaming_request(
+        messages=params.get("messages", []),
+        system_prompt=params.get("system"),
+        tools=params.get("tools"),
+        options={
+            "model": params.get("model", get_small_fast_model()),
+            "max_tokens": params.get("max_tokens", 4096),
+            "max_retries": max_retries,
+            "source": source,
+        },
+        signal=signal,
+    )
