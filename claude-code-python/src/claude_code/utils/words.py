@@ -1,17 +1,19 @@
-# 原始 TS: utils/words.ts
-"""Random word slug generator for plan IDs (adjective + noun combos)."""
-
+"""Random word slug generator for plan IDs.
+Ported from utils/words.ts (800 lines).
+Generates "adjective-verb-noun" or "adjective-noun" slugs using
+cryptographically secure randomness.
+"""
 from __future__ import annotations
 
-import os
 import secrets
-from typing import List, Optional
+from typing import List
 
 # ---------------------------------------------------------------------------
-# Word lists — whimsical adjectives and nouns (Claude-flavored)
+# Adjectives — whimsical, programming-flavored
 # ---------------------------------------------------------------------------
 
 _ADJECTIVES: List[str] = [
+    # Classic pleasant adjectives
     "abundant", "ancient", "bright", "calm", "cheerful", "clever", "cozy",
     "curious", "dapper", "dazzling", "deep", "delightful", "eager", "elegant",
     "enchanted", "fancy", "fluffy", "gentle", "gleaming", "golden", "graceful",
@@ -21,47 +23,173 @@ _ADJECTIVES: List[str] = [
     "proud", "quiet", "quirky", "radiant", "rosy", "serene", "shiny", "silly",
     "sleepy", "smooth", "snazzy", "snug", "snuggly", "soft", "sparkling",
     "spicy", "splendid", "sprightly", "starry", "steady", "sunny", "swift",
-    "tender", "tidy", "toasty", "tranquil", "twinkly", "vibrant", "vivid",
-    "warm", "whimsical", "wild", "witty", "wonderful", "zesty", "zippy",
+    "tender", "tidy", "toasty", "tranquil", "twinkly", "valiant", "vast",
+    "velvet", "vivid", "warm", "whimsical", "wild", "wise", "witty", "wondrous",
+    "zany", "zesty", "zippy",
+    # Whimsical / magical
+    "breezy", "bubbly", "buzzing", "cheeky", "cosmic", "crispy", "crystalline",
+    "cuddly", "drifting", "dreamy", "effervescent", "ethereal", "fizzy",
+    "flickering", "floating", "floofy", "fluttering", "foamy", "frolicking",
+    "fuzzy", "giggly", "glimmering", "glistening", "glittery", "glowing",
+    "goofy", "groovy", "harmonic", "hazy", "humming", "iridescent", "jaunty",
+    "jazzy", "jiggly", "melodic", "moonlit", "mossy", "nifty", "peppy",
+    "prancy", "purrfect", "purring", "quizzical", "rippling", "rustling",
+    "shimmering", "shimmying", "snappy", "snoopy", "squishy", "swirling",
+    "ticklish", "tingly", "twinkling", "velvety", "wiggly", "wobbly",
+    "woolly", "zazzy",
+    # Programming concepts
+    "abstract", "adaptive", "agile", "async", "atomic", "binary", "cached",
+    "compiled", "composed", "compressed", "concurrent", "cryptic", "curried",
+    "declarative", "delegated", "distributed", "dynamic", "encapsulated",
+    "enumerated", "eventual", "expressive", "federated", "functional", "generic",
+    "greedy", "hashed", "idempotent", "immutable", "imperative", "indexed",
+    "inherited", "iterative", "lazy", "lexical", "linear", "linked", "logical",
+    "memoized", "modular", "mutable", "nested", "optimized", "parallel",
+    "parsed", "partitioned", "piped", "polymorphic", "pure", "reactive",
+    "recursive", "refactored", "reflective", "replicated", "resilient",
+    "robust", "scalable", "sequential", "serialized", "sharded", "sorted",
+    "staged", "stateful", "stateless", "streamed", "structured", "synchronous",
+    "synthetic", "temporal", "transient", "typed", "unified", "validated",
+    "vectorized", "virtual",
 ]
 
+# ---------------------------------------------------------------------------
+# Nouns — nature, creatures, objects, computer scientists
+# ---------------------------------------------------------------------------
+
 _NOUNS: List[str] = [
-    "aurora", "beacon", "blossom", "breeze", "brook", "candle", "canyon",
-    "cascade", "castle", "cedar", "cherry", "cloud", "comet", "coral",
-    "crystal", "dawn", "delta", "dew", "dream", "dune", "ember", "falcon",
-    "fern", "fjord", "flame", "forest", "fountain", "galaxy", "garden",
-    "glacier", "grove", "harbor", "haven", "heath", "hill", "horizon",
-    "island", "jasmine", "jungle", "lagoon", "lake", "lantern", "laurel",
-    "leaf", "legend", "light", "lily", "lotus", "meadow", "mist", "moon",
-    "moss", "mountain", "nebula", "ocean", "olive", "opal", "orchid",
-    "pebble", "pine", "pixel", "pond", "prism", "rain", "rainbow", "reef",
-    "river", "rose", "sage", "sand", "shimmer", "shore", "sky", "snow",
-    "spark", "spring", "star", "stone", "stream", "summit", "sun", "sunset",
-    "temple", "tide", "torch", "trail", "tree", "vale", "valley", "violet",
-    "wave", "willow", "wind", "wood", "zenith",
+    # Nature & cosmic
+    "aurora", "avalanche", "blossom", "breeze", "brook", "bubble", "canyon",
+    "cascade", "cloud", "clover", "comet", "coral", "cosmos", "creek",
+    "crescent", "crystal", "dawn", "dewdrop", "dusk", "eclipse", "ember",
+    "feather", "fern", "firefly", "flame", "flurry", "fog", "forest", "frost",
+    "galaxy", "garden", "glacier", "glade", "grove", "harbor", "horizon",
+    "island", "lagoon", "lake", "leaf", "lightning", "meadow", "meteor",
+    "mist", "moon", "moonbeam", "mountain", "nebula", "nova", "ocean", "orbit",
+    "pebble", "petal", "pine", "planet", "pond", "puddle", "quasar", "rain",
+    "rainbow", "reef", "ripple", "river", "shore", "sky", "snowflake", "spark",
+    "spring", "star", "stardust", "starlight", "storm", "stream", "summit",
+    "sun", "sunbeam", "sunrise", "sunset", "thunder", "tide", "twilight",
+    "valley", "volcano", "waterfall", "wave", "willow", "wind",
+    # Cute creatures
+    "alpaca", "axolotl", "badger", "bear", "beaver", "bee", "bird",
+    "bumblebee", "bunny", "cat", "chipmunk", "crab", "crane", "deer",
+    "dolphin", "dove", "dragon", "dragonfly", "duckling", "eagle", "elephant",
+    "falcon", "finch", "flamingo", "fox", "frog", "giraffe", "goose",
+    "hamster", "hare", "hedgehog", "hippo", "hummingbird", "jellyfish",
+    "kitten", "koala", "ladybug", "lark", "lemur", "llama", "lobster",
+    "lynx", "manatee", "meerkat", "moth", "narwhal", "newt", "octopus",
+    "otter", "owl", "panda", "parrot", "peacock", "pelican", "penguin",
+    "phoenix", "piglet", "platypus", "pony", "porcupine", "puffin", "puppy",
+    "quail", "quokka", "rabbit", "raccoon", "raven", "robin", "salamander",
+    "seahorse", "seal", "sloth", "snail", "sparrow", "sphinx", "squid",
+    "squirrel", "starfish", "swan", "tiger", "toucan", "turtle", "unicorn",
+    "walrus", "whale", "wolf", "wombat", "wren", "yeti", "zebra",
+    # Fun objects & concepts
+    "acorn", "anchor", "balloon", "beacon", "biscuit", "blanket", "bonbon",
+    "book", "boot", "cake", "candle", "candy", "castle", "charm", "clock",
+    "cocoa", "cookie", "crayon", "crown", "cupcake", "donut", "dream",
+    "fairy", "fiddle", "flask", "flute", "fountain", "gadget", "gem",
+    "gizmo", "globe", "goblet", "hammock", "harp", "haven", "hearth",
+    "honey", "journal", "kazoo", "kettle", "key", "kite", "lantern",
+    "lemon", "lighthouse", "locket", "lollipop", "mango", "map", "marble",
+    "marshmallow", "melody", "mitten", "mochi", "muffin", "music", "nest",
+    "noodle", "oasis", "origami", "pancake", "parasol", "peach", "pearl",
+    "pebble", "pie", "pillow", "pinwheel", "pixel", "pizza", "plum",
+    "popcorn", "pretzel", "prism", "pudding", "pumpkin", "puzzle", "quiche",
+    "quill", "quilt", "riddle", "rocket", "rose", "scone", "scroll", "shell",
+    "sketch", "snowglobe", "sonnet", "sparkle", "spindle", "sprout", "sundae",
+    "swing", "taco", "teacup", "teapot", "thimble", "toast", "token", "tome",
+    "tower", "treasure", "treehouse", "trinket", "truffle", "tulip",
+    "umbrella", "waffle", "wand", "whisper", "whistle", "widget", "wreath",
+    "zephyr",
+    # Computer scientists
+    "abelson", "adleman", "aho", "allen", "babbage", "bachman", "backus",
+    "barto", "bengio", "bentley", "blum", "boole", "brooks", "catmull",
+    "cerf", "cherny", "church", "clarke", "cocke", "codd", "conway", "cook",
+    "corbato", "cray", "curry", "dahl", "diffie", "dijkstra", "dongarra",
+    "eich", "emerson", "engelbart", "feigenbaum", "floyd", "gosling",
+    "graham", "gray", "hamming", "hanrahan", "hartmanis", "hejlsberg",
+    "hellman", "hennessy", "hickey", "hinton", "hoare", "hollerith",
+    "hopcroft", "hopper", "iverson", "kahan", "kahn", "karp", "kay",
+    "kernighan", "knuth", "kurzweil", "lamport", "lampson", "lecun",
+    "lerdorf", "liskov", "lovelace", "matsumoto", "mccarthy", "metcalfe",
+    "micali", "milner", "minsky", "moler", "moore", "naur", "neumann",
+    "newell", "nygaard", "papert", "parnas", "pascal", "patterson", "pearl",
+    "perlis", "pike", "pnueli", "rabin", "reddy", "ritchie", "rivest",
+    "rossum", "russell", "scott", "sedgewick", "shamir", "shannon",
+    "sifakis", "simon", "stallman", "stearns", "steele", "stonebraker",
+    "stroustrup", "sutherland", "sutton", "tarjan", "thacker", "thompson",
+    "torvalds", "turing", "ullman", "valiant", "wadler", "wall", "wigderson",
+    "wilkes", "wilkinson", "wirth", "wozniak", "yao",
 ]
+
+# ---------------------------------------------------------------------------
+# Verbs — whimsical action words (for 3-word slugs)
+# ---------------------------------------------------------------------------
+
+_VERBS: List[str] = [
+    "baking", "beaming", "booping", "bouncing", "brewing", "bubbling",
+    "chasing", "churning", "coalescing", "conjuring", "cooking", "crafting",
+    "crunching", "cuddling", "dancing", "dazzling", "discovering", "doodling",
+    "dreaming", "drifting", "enchanting", "exploring", "finding", "floating",
+    "fluttering", "foraging", "forging", "frolicking", "gathering", "giggling",
+    "gliding", "greeting", "growing", "hatching", "herding", "honking",
+    "hopping", "hugging", "humming", "imagining", "inventing", "jingling",
+    "juggling", "jumping", "kindling", "knitting", "launching", "leaping",
+    "mapping", "marinating", "meandering", "mixing", "moseying", "munching",
+    "napping", "nibbling", "noodling", "orbiting", "painting", "percolating",
+    "petting", "plotting", "pondering", "popping", "prancing", "purring",
+    "puzzling", "questing", "riding", "roaming", "rolling", "sauteeing",
+    "scribbling", "seeking", "shimmying", "singing", "skipping", "sleeping",
+    "snacking", "sniffing", "snuggling", "soaring", "sparking", "spinning",
+    "splashing", "sprouting", "squishing", "stargazing", "stirring",
+    "strolling", "swimming", "swinging", "tickling", "tinkering", "toasting",
+    "tumbling", "twirling", "waddling", "wandering", "watching", "weaving",
+    "whistling", "wibbling", "wiggling", "wishing", "wobbling", "wondering",
+    "yawning", "zooming",
+]
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _pick_random(lst: List[str]) -> str:
+    """Pick a cryptographically random element from *lst*."""
+    return secrets.choice(lst)
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-def generate_word_slug(separator: str = "-", num_words: int = 2) -> str:
-    """Return a random adjective-noun slug like ``"golden-river"``.
+def generate_word_slug() -> str:
+    """Return a random 3-word slug: ``"adjective-verb-noun"``.
 
-    Args:
-        separator: Character(s) between words (default ``"-"``).
-        num_words: Total word count (1 = noun only, 2 = adj+noun, 3 = adj+adj+noun).
+    Example: ``"gleaming-brewing-phoenix"``, ``"cosmic-pondering-lighthouse"``
     """
-    words: List[str] = []
-    for _ in range(max(0, num_words - 1)):
-        words.append(secrets.choice(_ADJECTIVES))
-    words.append(secrets.choice(_NOUNS))
-    return separator.join(words)
+    adjective = _pick_random(_ADJECTIVES)
+    verb = _pick_random(_VERBS)
+    noun = _pick_random(_NOUNS)
+    return f"{adjective}-{verb}-{noun}"
+
+
+def generate_short_word_slug() -> str:
+    """Return a random 2-word slug: ``"adjective-noun"``.
+
+    Example: ``"graceful-unicorn"``, ``"cosmic-lighthouse"``
+    """
+    adjective = _pick_random(_ADJECTIVES)
+    noun = _pick_random(_NOUNS)
+    return f"{adjective}-{noun}"
 
 
 def generate_slug_with_number(separator: str = "-") -> str:
-    """Return a slug like ``"golden-river-42"`` with a random 2-digit number."""
-    base = generate_word_slug(separator=separator)
+    """Return a short slug with a trailing 2-digit number.
+
+    Example: ``"golden-river-42"``
+    """
+    base = generate_short_word_slug()
     number = secrets.randbelow(90) + 10  # 10..99
     return f"{base}{separator}{number}"
