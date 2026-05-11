@@ -399,14 +399,12 @@ async def _get_pane_backend_executor() -> TeammateExecutor:
 
 def reset_backend_detection() -> None:
     """Resets the backend detection cache. Used for testing."""
-    global (
-        _cached_backend,
-        _cached_detection_result,
-        _cached_in_process_backend,
-        _cached_pane_backend_executor,
-        _backends_registered,
-        _in_process_fallback_active,
-    )
+    global _cached_backend
+    global _cached_detection_result
+    global _cached_in_process_backend
+    global _cached_pane_backend_executor
+    global _backends_registered
+    global _in_process_fallback_active
     _cached_backend = None
     _cached_detection_result = None
     _cached_in_process_backend = None
