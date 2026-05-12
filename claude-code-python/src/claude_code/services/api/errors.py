@@ -724,8 +724,3 @@ def get_error_message_if_refusal(
     )
 
 
-# ---------------------------------------------------------------------------
-# Lazy sys import guard
-# ---------------------------------------------------------------------------
-
-import sys  # noqa: E402 (already imported at top but kept explicit for clarity)
