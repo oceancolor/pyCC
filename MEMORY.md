@@ -30,17 +30,27 @@
 - `setup.py`：会话初始化
 - FileReadTool/FileEditTool/FileWriteTool/GlobTool/GrepTool（完整实现）
 
-**当前状态（2026-04-16）：**
-- Python 文件总数 1,272 个，总行数 ~132,638 行
-- 整体覆盖 ~79%，stub 文件 537 个（最大缺口）
+**当前状态（2026-05-12）：**
+- Python 文件总数 1,291 个，总行数 ~183,716 行
+- stub 文件（<20行）592 个（较上次减少约33个）
 - 测试 48 passed ✅ 全程稳定
 
-**剩余高优先级缺口：**
-- `run_agent.py`（973行TS，MISSING）
-- `services/teamMemorySync/index.py`（1256行，MISSING）
-- `cli/print.py`（5594行TS → 965行，17%）
-- `utils/hooks.ts`（5022行，stub）
-- `commands/insights.py`（3200行，7行）
+**本次新增（2026-05-12）：**
+- `utils/messages.py`（2906行）— 消息构造/标准化核心层
+- `utils/collapse_read_search.py`（1063行）— 连续read/search折叠
+- `services/compact/session_memory_compact.py`（869行）
+- `services/compact/auto_compact.py`（505行）
+- `services/compact/micro_compact.py`（624行）
+- `services/compact/prompt.py`（完整）— Compact prompt builder
+- `utils/model/model_options.py`（617行）
+- `utils/model/model_capabilities.py`（273行）
+- `utils/model/validate_model.py`（219行）
+- 20+ 个中小文件实现（analytics/index、memdir/paths、xml、signal、tempfile等）
+
+**仍待推进的高优先级：**
+- `cli/print.py`（2108/5594行，38%）— runHeadless主循环大量缺失
+- `services/api/claude.py`（1461/3419行，43%）— queryModel核心流
+- stub 文件 592 个（最大缺口）
 
 ---
 

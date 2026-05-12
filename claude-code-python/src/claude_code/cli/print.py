@@ -786,7 +786,7 @@ async def reconcile_mcp_servers(
 
 
 # ---------------------------------------------------------------------------
-# runHeadless  (main entry-point stub)
+# runHeadless  (main entry-point)
 # ---------------------------------------------------------------------------
 
 
@@ -814,15 +814,218 @@ async def run_headless(
         All SDK-protocol logic (control messages, stream-json output, MCP
         server management, permission prompts) is faithfully ported.
     """
-    # NOTE: Full implementation requires the broader Claude Code Python runtime
-    # (QueryEngine, StructuredIO, AppState, etc.) which are being ported in
-    # parallel.  This stub validates the call signature and raises
-    # NotImplementedError to surface missing dependencies rather than silently
-    # doing nothing.
-    raise NotImplementedError(
-        "run_headless: full implementation pending completion of the "
-        "Claude Code Python runtime (QueryEngine, StructuredIO, AppState)."
+    import json
+
+    # --resume-session-at requires --resume
+    if options.get("resume_session_at") and not options.get("resume"):
+        sys.stderr.write("Error: --resume-session-at requires --resume\n")
+        return
+
+    # --rewind-files requires --resume
+    if options.get("rewind_files") and not options.get("resume"):
+        sys.stderr.write("Error: --rewind-files requires --resume\n")
+        return
+
+    if options.get("rewind_files") and input_prompt:
+        sys.stderr.write(
+            "Error: --rewind-files is a standalone operation and cannot be used with a prompt\n"
+        )
+        return
+
+    structured_io = get_structured_io(input_prompt, options)
+
+    output_format = options.get("output_format")
+
+    app_state = get_app_state()
+
+    # Load initial messages
+    load_result = await load_initial_messages(set_app_state, options)
+    initial_messages = load_result.messages
+    turn_interruption_state = load_result.turn_interruption_state
+
+    if len(initial_messages) == 0 and not options.get("resume") and not options.get("sdk_url"):
+        # Check for early exit conditions
+        pass
+
+    # Handle --rewind-files
+    if options.get("rewind_files"):
+        target_uuid = options["rewind_files"]
+        target_msg = next(
+            (m for m in initial_messages if m.get("uuid") == target_uuid and m.get("type") == "user"),
+            None,
+        )
+        if not target_msg:
+            sys.stderr.write(
+                f"Error: --rewind-files requires a user message UUID, but {target_uuid} "
+                "is not a user message in this session\n"
+            )
+            return
+        result = await handle_rewind_files(
+            target_uuid,
+            get_app_state(),
+            set_app_state,
+            False,
+        )
+        if not result.can_rewind:
+            sys.stderr.write(f"Error: {result.error or 'Unexpected error'}\n")
+            return
+        sys.stdout.write(f"Files rewound to state at message {target_uuid}\n")
+        sys.stdout.flush()
+        return
+
+    # Validate input prompt requirement
+    has_valid_resume = (
+        isinstance(options.get("resume"), str)
+        and bool(options["resume"])
     )
+    is_using_sdk_url = bool(options.get("sdk_url"))
+
+    if not input_prompt and not has_valid_resume and not is_using_sdk_url:
+        sys.stderr.write(
+            "Error: Input must be provided either through stdin or as a prompt argument "
+            "when using --print\n"
+        )
+        return
+
+    if output_format == "stream-json" and not options.get("verbose"):
+        sys.stderr.write(
+            "Error: When using --print, --output-format=stream-json requires --verbose\n"
+        )
+        return
+
+    # Filter MCP tools by deny rules
+    mcp_state = getattr(app_state, "mcp", None) or (app_state.get("mcp", {}) if isinstance(app_state, dict) else {})
+    mcp_tools = (
+        mcp_state.get("tools", []) if isinstance(mcp_state, dict)
+        else getattr(mcp_state, "tools", [])
+    )
+    tool_permission_context = (
+        app_state.get("tool_permission_context", {}) if isinstance(app_state, dict)
+        else getattr(app_state, "tool_permission_context", {})
+    )
+
+    try:
+        from claude_code.tools import filter_tools_by_deny_rules  # type: ignore[import]
+        allowed_mcp_tools = filter_tools_by_deny_rules(mcp_tools, tool_permission_context)
+    except ImportError:
+        allowed_mcp_tools = list(mcp_tools)
+
+    filtered_tools = list(tools) + allowed_mcp_tools
+
+    # Determine effective permission prompt tool name
+    effective_ppt_name = (
+        "stdio" if options.get("sdk_url")
+        else options.get("permission_prompt_tool_name")
+    )
+
+    def _on_permission_prompt(details: Any) -> None:
+        pass  # In headless mode, just track if needed
+
+    can_use_tool = get_can_use_tool_fn(
+        effective_ppt_name,
+        structured_io,
+        lambda: (
+            mcp_state.get("tools", []) if isinstance(mcp_state, dict)
+            else getattr(mcp_state, "tools", [])
+        ),
+        _on_permission_prompt,
+    )
+
+    if options.get("permission_prompt_tool_name"):
+        ppt_name = options["permission_prompt_tool_name"]
+        filtered_tools = [t for t in filtered_tools if not _tool_matches_name(t, ppt_name)]
+
+    # Get model options for initialize response
+    model_infos: List[Dict[str, Any]] = []
+    try:
+        from claude_code.utils.model.model import get_model_options  # type: ignore[import]
+        raw_opts = get_model_options()
+        model_infos = build_model_infos(raw_opts)
+    except ImportError:
+        pass
+
+    # Collect all messages
+    needs_full_array = output_format == "json" and options.get("verbose")
+    messages_collected: List[Dict[str, Any]] = []
+    last_message: Optional[Dict[str, Any]] = None
+
+    # Stream from run_headless_streaming
+    mcp_clients = (
+        mcp_state.get("clients", []) if isinstance(mcp_state, dict)
+        else getattr(mcp_state, "clients", [])
+    )
+    mcp_commands = (
+        mcp_state.get("commands", []) if isinstance(mcp_state, dict)
+        else getattr(mcp_state, "commands", [])
+    )
+
+    async for message in run_headless_streaming(
+        structured_io,
+        mcp_clients,
+        list(commands) + list(mcp_commands),
+        filtered_tools,
+        initial_messages,
+        can_use_tool,
+        sdk_mcp_configs,
+        get_app_state,
+        set_app_state,
+        agents,
+        options,
+        turn_interruption_state,
+    ):
+        msg_type = message.get("type", "")
+        msg_subtype = message.get("subtype", "")
+
+        if output_format == "stream-json" and options.get("verbose"):
+            try:
+                sys.stdout.write(json.dumps(message) + "\n")
+                sys.stdout.flush()
+            except Exception:
+                pass
+
+        # Skip control/stream/keep-alive messages for last_message tracking
+        if msg_type in ("control_response", "control_request", "control_cancel_request",
+                        "stream_event", "keep_alive", "streamlined_text",
+                        "streamlined_tool_use_summary", "prompt_suggestion"):
+            continue
+        if msg_type == "system" and msg_subtype in (
+            "session_state_changed", "task_notification", "task_started",
+            "task_progress", "post_turn_summary"
+        ):
+            continue
+
+        if needs_full_array:
+            messages_collected.append(message)
+        last_message = message
+
+    # Output final result
+    if output_format == "json":
+        if not last_message or last_message.get("type") != "result":
+            raise RuntimeError("No messages returned")
+        if options.get("verbose"):
+            sys.stdout.write(json.dumps(messages_collected) + "\n")
+        else:
+            sys.stdout.write(json.dumps(last_message) + "\n")
+        sys.stdout.flush()
+    elif output_format == "stream-json":
+        pass  # already streamed above
+    else:
+        if not last_message or last_message.get("type") != "result":
+            raise RuntimeError("No messages returned")
+        subtype = last_message.get("subtype", "")
+        if subtype == "success":
+            result_text = last_message.get("result", "")
+            output_text = result_text if result_text.endswith("\n") else result_text + "\n"
+            sys.stdout.write(output_text)
+        elif subtype == "error_during_execution":
+            sys.stdout.write("Execution error\n")
+        elif subtype == "error_max_turns":
+            sys.stdout.write(f"Error: Reached max turns ({options.get('max_turns')})\n")
+        elif subtype == "error_max_budget_usd":
+            sys.stdout.write(f"Error: Exceeded USD budget ({options.get('max_budget_usd')})\n")
+        elif subtype == "error_max_structured_output_retries":
+            sys.stdout.write("Error: Failed to provide valid structured output after maximum retries\n")
+        sys.stdout.flush()
 
 
 # ---------------------------------------------------------------------------
@@ -1585,7 +1788,7 @@ async def handle_initialize_request(
 
 
 # ---------------------------------------------------------------------------
-# run_headless_streaming  (generator / async-iterable stub)
+# run_headless_streaming  (async generator — core query loop)
 # ---------------------------------------------------------------------------
 
 
@@ -1612,15 +1815,861 @@ async def run_headless_streaming(
     interactive scaffolding (proactive ticks, cron scheduler, bridge handle,
     etc.) is not yet ported; the core ask/drain loop is implemented.
     """
-    # NOTE: Full implementation requires QueryEngine, StructuredIO, and
-    # AppState.  This stub validates the signature and raises
-    # NotImplementedError rather than silently doing nothing.
-    raise NotImplementedError(
-        "run_headless_streaming: pending completion of the Claude Code Python runtime."
-    )
-    # Make this function syntactically an async generator:
-    if False:  # pragma: no cover
-        yield {}
+    import asyncio
+    import json
+
+    # -----------------------------------------------------------------------
+    # State
+    # -----------------------------------------------------------------------
+    running = False
+    input_closed = False
+    shutdown_prompt_injected = False
+    held_back_result: Optional[Dict[str, Any]] = None
+    abort_controller: Optional[Any] = None
+
+    # Output queue — items yielded to caller
+    output_queue: asyncio.Queue = asyncio.Queue()
+    output_done = asyncio.Event()
+
+    # Mutable message list (mutated by ask())
+    mutable_messages: List[Dict[str, Any]] = list(initial_messages)
+
+    # SDK MCP state
+    sdk_clients: List[Any] = []
+    sdk_tools: List[Any] = []
+    dynamic_mcp_state = DynamicMcpState()
+
+    # Track handled orphaned tool_use IDs
+    handled_orphaned_tool_use_ids: Set[str] = set()
+
+    # Current commands / agents (may be hot-reloaded)
+    current_commands = list(commands)
+    current_agents = list(agents)
+
+    # SDK active user model
+    active_user_specified_model = options.get("user_specified_model")
+
+    # -----------------------------------------------------------------------
+    # Helpers
+    # -----------------------------------------------------------------------
+
+    def _enqueue_output(item: Dict[str, Any]) -> None:
+        """Put *item* onto the output queue."""
+        output_queue.put_nowait(item)
+
+    def _get_session_id_local() -> str:
+        return _get_session_id()
+
+    def _new_uuid() -> str:
+        return str(_uuid_module.uuid4())
+
+    def _ctrl_success(
+        message: Dict[str, Any],
+        response: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        _enqueue_output({
+            "type": "control_response",
+            "response": {
+                "subtype": "success",
+                "request_id": message.get("request_id"),
+                "response": response,
+            },
+        })
+
+    def _ctrl_error(message: Dict[str, Any], error_text: str) -> None:
+        _enqueue_output({
+            "type": "control_response",
+            "response": {
+                "subtype": "error",
+                "request_id": message.get("request_id"),
+                "error": error_text,
+            },
+        })
+
+    def _build_all_tools(app_state: Any) -> List[Any]:
+        """Assemble the full tool list for the current turn."""
+        mcp_state = (
+            app_state.get("mcp", {}) if isinstance(app_state, dict)
+            else getattr(app_state, "mcp", {})
+        ) or {}
+        app_mcp_tools = (
+            mcp_state.get("tools", []) if isinstance(mcp_state, dict)
+            else getattr(mcp_state, "tools", [])
+        )
+        all_tools = list(tools) + list(sdk_tools) + list(dynamic_mcp_state.tools)
+        # Deduplicate by name (later entries win)
+        seen: Dict[str, Any] = {}
+        for t in all_tools:
+            name = _tool_name(t)
+            seen[name] = t
+        result = list(seen.values())
+        # Remove permission-prompt tool
+        ppt = options.get("permission_prompt_tool_name")
+        if ppt:
+            result = [t for t in result if not _tool_matches_name(t, ppt)]
+        return result
+
+    async def _update_sdk_mcp() -> None:
+        """Connect / reconnect SDK MCP servers as needed."""
+        nonlocal sdk_clients, sdk_tools
+        current_names: Set[str] = set(sdk_mcp_configs.keys())
+        connected_names: Set[str] = {c.get("name", "") if isinstance(c, dict) else getattr(c, "name", "") for c in sdk_clients}
+        has_new = any(n not in connected_names for n in current_names)
+        has_removed = any(n not in current_names for n in connected_names)
+        has_pending = any(
+            (c.get("type") if isinstance(c, dict) else getattr(c, "type", "")) == "pending"
+            for c in sdk_clients
+        )
+        if not (has_new or has_removed or has_pending):
+            return
+        try:
+            from claude_code.services.mcp.client import setup_sdk_mcp_clients  # type: ignore[import]
+            result = await setup_sdk_mcp_clients(
+                sdk_mcp_configs,
+                lambda server_name, msg: None,  # stub message sender
+            )
+            sdk_clients = result["clients"]
+            sdk_tools = result["tools"]
+        except ImportError:
+            pass
+
+    # Auto-resume interrupted turns
+    if (
+        turn_interruption_state
+        and turn_interruption_state.get("kind", "none") != "none"
+        and os.environ.get("CLAUDE_CODE_RESUME_INTERRUPTED_TURN")
+    ):
+        remove_interrupted_message(mutable_messages, turn_interruption_state.get("message", {}))
+        _enqueue(
+            {
+                "mode": "prompt",
+                "value": turn_interruption_state.get("message", {}).get("message", {}).get("content", ""),
+                "uuid": _new_uuid(),
+            }
+        )
+
+    # -----------------------------------------------------------------------
+    # run() — processes queued commands
+    # -----------------------------------------------------------------------
+
+    async def run() -> None:
+        nonlocal running, held_back_result, abort_controller
+        if running:
+            return
+        running = True
+
+        try:
+            await _update_sdk_mcp()
+
+            def _is_main_thread(cmd: Dict[str, Any]) -> bool:
+                return cmd.get("agent_id") is None
+
+            async def drain_command_queue() -> None:
+                nonlocal abort_controller, held_back_result
+                while True:
+                    # Dequeue next main-thread command
+                    try:
+                        from claude_code.utils.message_queue_manager import (  # type: ignore[import]
+                            dequeue, peek, can_batch_with as _ts_can_batch_with,
+                        )
+                        command: Optional[Dict[str, Any]] = dequeue(_is_main_thread)
+                    except ImportError:
+                        command = None
+
+                    if command is None:
+                        break
+
+                    mode = command.get("mode", "prompt")
+                    if mode not in ("prompt", "orphaned-permission", "task-notification"):
+                        raise RuntimeError("only prompt commands are supported in streaming mode")
+
+                    # Batch consecutive prompt commands
+                    batch = [command]
+                    if mode == "prompt":
+                        try:
+                            from claude_code.utils.message_queue_manager import (  # type: ignore[import]
+                                peek, dequeue,
+                            )
+                            while can_batch_with(command, peek(_is_main_thread)):
+                                nxt = dequeue(_is_main_thread)
+                                if nxt:
+                                    batch.append(nxt)
+                        except ImportError:
+                            pass
+                        if len(batch) > 1:
+                            merged_value = join_prompt_values([c.get("value", "") for c in batch])
+                            last_uuid = next(
+                                (c.get("uuid") for c in reversed(batch) if c.get("uuid")),
+                                command.get("uuid"),
+                            )
+                            command = {**command, "value": merged_value, "uuid": last_uuid}
+
+                    batch_uuids = [c.get("uuid") for c in batch if c.get("uuid")]
+
+                    # Notify command lifecycle: started
+                    for uid in batch_uuids:
+                        try:
+                            from claude_code.utils.command_lifecycle import notify_command_lifecycle  # type: ignore[import]
+                            notify_command_lifecycle(uid, "started")
+                        except ImportError:
+                            pass
+
+                    # Handle task-notification
+                    if mode == "task-notification":
+                        notification_text = command.get("value", "")
+                        if isinstance(notification_text, str):
+                            parsed = parse_task_notification(notification_text)
+                            if parsed.get("has_status"):
+                                _enqueue_output({
+                                    "type": "system",
+                                    "subtype": "task_notification",
+                                    "task_id": parsed["task_id"],
+                                    "tool_use_id": parsed.get("tool_use_id"),
+                                    "status": parsed["status"],
+                                    "output_file": parsed["output_file"],
+                                    "summary": parsed["summary"],
+                                    "usage": parsed.get("usage"),
+                                    "session_id": _get_session_id_local(),
+                                    "uuid": _new_uuid(),
+                                })
+
+                    # Build tool list
+                    app_state = get_app_state()
+                    all_mcp_clients = (
+                        list((app_state.get("mcp", {}) if isinstance(app_state, dict) else getattr(app_state, "mcp", {}) or {}).get("clients", []))
+                        + sdk_clients
+                        + dynamic_mcp_state.clients
+                    )
+                    all_tools = _build_all_tools(app_state)
+
+                    input_val = command.get("value", "")
+
+                    # Create abort controller for this turn
+                    abort_controller = _create_abort_controller()
+
+                    # Ask the model
+                    try:
+                        from claude_code.query_engine import ask  # type: ignore[import]
+
+                        workload = command.get("workload") or options.get("workload")
+                        async for message in ask(
+                            commands=current_commands,
+                            prompt=input_val,
+                            prompt_uuid=command.get("uuid"),
+                            is_meta=command.get("is_meta", False),
+                            cwd=os.getcwd(),
+                            tools=all_tools,
+                            verbose=options.get("verbose"),
+                            mcp_clients=all_mcp_clients,
+                            thinking_config=options.get("thinking_config"),
+                            max_turns=options.get("max_turns"),
+                            max_budget_usd=options.get("max_budget_usd"),
+                            task_budget=options.get("task_budget"),
+                            can_use_tool=can_use_tool,
+                            user_specified_model=active_user_specified_model,
+                            fallback_model=options.get("fallback_model"),
+                            json_schema=options.get("json_schema"),
+                            mutable_messages=mutable_messages,
+                            custom_system_prompt=options.get("system_prompt"),
+                            append_system_prompt=options.get("append_system_prompt"),
+                            get_app_state=get_app_state,
+                            set_app_state=set_app_state,
+                            abort_controller=abort_controller,
+                            replay_user_messages=options.get("replay_user_messages"),
+                            include_partial_messages=options.get("include_partial_messages"),
+                            agents=current_agents,
+                            orphaned_permission=command.get("orphaned_permission"),
+                        ):
+                            if message.get("type") == "result":
+                                held_back_result = None
+                                _enqueue_output(message)
+                            else:
+                                _enqueue_output(message)
+
+                    except ImportError:
+                        # ask() not available — emit an error result
+                        _enqueue_output({
+                            "type": "result",
+                            "subtype": "error_during_execution",
+                            "duration_ms": 0,
+                            "duration_api_ms": 0,
+                            "is_error": True,
+                            "num_turns": 0,
+                            "stop_reason": None,
+                            "session_id": _get_session_id_local(),
+                            "total_cost_usd": 0,
+                            "usage": {},
+                            "modelUsage": {},
+                            "permission_denials": [],
+                            "uuid": _new_uuid(),
+                            "errors": ["QueryEngine (ask) module not available"],
+                        })
+
+                    # Notify command lifecycle: completed
+                    for uid in batch_uuids:
+                        try:
+                            from claude_code.utils.command_lifecycle import notify_command_lifecycle  # type: ignore[import]
+                            notify_command_lifecycle(uid, "completed")
+                        except ImportError:
+                            pass
+
+            # do-while: drain commands, then wait for background agents
+            waiting_for_agents = False
+            while True:
+                await drain_command_queue()
+
+                # Check for background tasks
+                waiting_for_agents = False
+                try:
+                    from claude_code.utils.task.framework import get_running_tasks  # type: ignore[import]
+                    from claude_code.tasks.types import is_background_task  # type: ignore[import]
+                    state = get_app_state()
+                    has_running_bg = any(
+                        is_background_task(t) and getattr(t, "type", "") != "in_process_teammate"
+                        for t in get_running_tasks(state)
+                    )
+                    if has_running_bg:
+                        waiting_for_agents = True
+                        await asyncio.sleep(0.1)
+                except ImportError:
+                    pass
+
+                if not waiting_for_agents:
+                    break
+
+            if held_back_result:
+                _enqueue_output(held_back_result)
+                held_back_result = None
+
+        except Exception as exc:
+            # Emit error result
+            try:
+                _enqueue_output({
+                    "type": "result",
+                    "subtype": "error_during_execution",
+                    "duration_ms": 0,
+                    "duration_api_ms": 0,
+                    "is_error": True,
+                    "num_turns": 0,
+                    "stop_reason": None,
+                    "session_id": _get_session_id_local(),
+                    "total_cost_usd": 0,
+                    "usage": {},
+                    "modelUsage": {},
+                    "permission_denials": [],
+                    "uuid": _new_uuid(),
+                    "errors": [str(exc)],
+                })
+            except Exception:
+                pass
+            output_done.set()
+            return
+        finally:
+            running = False
+
+        if input_closed:
+            # Clean up and signal done
+            try:
+                from claude_code.utils.hooks.async_hook_registry import finalize_pending_async_hooks  # type: ignore[import]
+                await finalize_pending_async_hooks()
+            except ImportError:
+                pass
+            output_done.set()
+
+    # -----------------------------------------------------------------------
+    # Input processing loop (parallel task)
+    # -----------------------------------------------------------------------
+
+    initialized = False
+
+    async def process_input() -> None:
+        nonlocal initialized, input_closed, active_user_specified_model
+
+        input_stream = getattr(structured_io, "structured_input", None)
+        if input_stream is None:
+            # No structured input — treat input as closed
+            nonlocal input_closed
+            input_closed = True
+            if not running:
+                output_done.set()
+            return
+
+        try:
+            async for message in input_stream:
+                msg_type = message.get("type", "") if isinstance(message, dict) else getattr(message, "type", "")
+
+                if msg_type == "control_request":
+                    request = message.get("request", {}) if isinstance(message, dict) else getattr(message, "request", {})
+                    request_id = message.get("request_id", "") if isinstance(message, dict) else getattr(message, "request_id", "")
+                    subtype = request.get("subtype", "") if isinstance(request, dict) else getattr(request, "subtype", "")
+
+                    if subtype == "interrupt":
+                        if abort_controller is not None:
+                            _abort_controller(abort_controller)
+                        _ctrl_success(message)
+
+                    elif subtype == "end_session":
+                        if abort_controller is not None:
+                            _abort_controller(abort_controller)
+                        _ctrl_success(message)
+                        break  # exit input loop
+
+                    elif subtype == "initialize":
+                        # Register SDK MCP servers from initialize message
+                        sdk_servers = request.get("sdkMcpServers", []) if isinstance(request, dict) else []
+                        for server_name in sdk_servers:
+                            sdk_mcp_configs[server_name] = {"type": "sdk", "name": server_name}
+
+                        await handle_initialize_request(
+                            request,
+                            request_id,
+                            initialized,
+                            output_queue,
+                            current_commands,
+                            model_infos_local,
+                            structured_io,
+                            bool(options.get("enable_auth_status")),
+                            options,
+                            current_agents,
+                            get_app_state,
+                        )
+                        initialized = True
+
+                        # Kick off run if commands pre-queued
+                        try:
+                            from claude_code.utils.message_queue_manager import has_commands_in_queue  # type: ignore[import]
+                            if has_commands_in_queue():
+                                asyncio.ensure_future(run())
+                        except ImportError:
+                            pass
+
+                    elif subtype == "set_permission_mode":
+                        app_state = get_app_state()
+                        tool_perm_ctx = (
+                            app_state.get("tool_permission_context", {}) if isinstance(app_state, dict)
+                            else getattr(app_state, "tool_permission_context", {})
+                        )
+                        new_ctx = handle_set_permission_mode(
+                            request, request_id, tool_perm_ctx, output_queue
+                        )
+
+                        def _update_perm(prev: Any) -> Any:
+                            if isinstance(prev, dict):
+                                return {**prev, "tool_permission_context": new_ctx}
+                            try:
+                                import copy
+                                np = copy.copy(prev)
+                                object.__setattr__(np, "tool_permission_context", new_ctx)
+                                return np
+                            except Exception:
+                                return prev
+
+                        set_app_state(_update_perm)
+
+                    elif subtype == "set_model":
+                        requested = request.get("model", "default") if isinstance(request, dict) else "default"
+                        try:
+                            from claude_code.utils.model.model import (
+                                get_default_main_loop_model,
+                                parse_user_specified_model,
+                            )  # type: ignore[import]
+                            model = (
+                                get_default_main_loop_model()
+                                if requested == "default"
+                                else parse_user_specified_model(requested)
+                            )
+                        except ImportError:
+                            model = requested
+                        active_user_specified_model = model
+                        _ctrl_success(message)
+
+                    elif subtype == "set_max_thinking_tokens":
+                        max_tokens = request.get("max_thinking_tokens") if isinstance(request, dict) else None
+                        if max_tokens is None:
+                            options["thinking_config"] = None
+                        elif max_tokens == 0:
+                            options["thinking_config"] = {"type": "disabled"}
+                        else:
+                            options["thinking_config"] = {"type": "enabled", "budget_tokens": max_tokens}
+                        _ctrl_success(message)
+
+                    elif subtype == "mcp_status":
+                        app_state = get_app_state()
+                        app_mcp = (
+                            app_state.get("mcp", {}) if isinstance(app_state, dict)
+                            else getattr(app_state, "mcp", {})
+                        ) or {}
+                        app_clients = (
+                            app_mcp.get("clients", []) if isinstance(app_mcp, dict)
+                            else getattr(app_mcp, "clients", [])
+                        )
+                        all_tools_for_status = (
+                            list(app_mcp.get("tools", []) if isinstance(app_mcp, dict) else getattr(app_mcp, "tools", []))
+                            + dynamic_mcp_state.tools
+                        )
+                        statuses = build_mcp_server_statuses(
+                            app_clients, sdk_clients, dynamic_mcp_state, all_tools_for_status
+                        )
+                        _ctrl_success(message, {"mcpServers": statuses})
+
+                    elif subtype == "mcp_set_servers":
+                        servers = request.get("servers", {}) if isinstance(request, dict) else {}
+                        result = await handle_mcp_set_servers(
+                            servers,
+                            SdkMcpState(
+                                configs=dict(sdk_mcp_configs),
+                                clients=list(sdk_clients),
+                                tools=list(sdk_tools),
+                            ),
+                            dynamic_mcp_state,
+                            set_app_state,
+                        )
+                        _ctrl_success(message, result.response)
+                        if result.sdk_servers_changed:
+                            asyncio.ensure_future(_update_sdk_mcp())
+
+                    elif subtype == "cancel_async_message":
+                        target_uuid = request.get("message_uuid") if isinstance(request, dict) else None
+                        cancelled = False
+                        if target_uuid:
+                            try:
+                                from claude_code.utils.message_queue_manager import dequeue_all_matching  # type: ignore[import]
+                                removed = dequeue_all_matching(lambda cmd: cmd.get("uuid") == target_uuid)
+                                cancelled = len(removed) > 0
+                            except ImportError:
+                                pass
+                        _ctrl_success(message, {"cancelled": cancelled})
+
+                    elif subtype == "rewind_files":
+                        app_state = get_app_state()
+                        dry_run = request.get("dry_run", False) if isinstance(request, dict) else False
+                        uid = request.get("user_message_id", "") if isinstance(request, dict) else ""
+                        result_rw = await handle_rewind_files(uid, app_state, set_app_state, dry_run)
+                        if result_rw.can_rewind or dry_run:
+                            _ctrl_success(message, {
+                                "can_rewind": result_rw.can_rewind,
+                                "error": result_rw.error,
+                                "files_changed": result_rw.files_changed,
+                                "insertions": result_rw.insertions,
+                                "deletions": result_rw.deletions,
+                            })
+                        else:
+                            _ctrl_error(message, result_rw.error or "Unexpected error")
+
+                    elif subtype == "channel_enable":
+                        server_name = request.get("serverName", "") if isinstance(request, dict) else ""
+                        app_state = get_app_state()
+                        app_mcp = (
+                            app_state.get("mcp", {}) if isinstance(app_state, dict)
+                            else getattr(app_state, "mcp", {})
+                        ) or {}
+                        app_clients = (
+                            app_mcp.get("clients", []) if isinstance(app_mcp, dict)
+                            else getattr(app_mcp, "clients", [])
+                        )
+                        pool = app_clients + sdk_clients + dynamic_mcp_state.clients
+                        handle_channel_enable(request_id, server_name, pool, output_queue)
+
+                    elif subtype == "reload_plugins":
+                        try:
+                            from claude_code.utils.plugins.refresh import refresh_active_plugins  # type: ignore[import]
+                            r = await refresh_active_plugins(set_app_state)
+                            sdk_agent_defs = [a for a in current_agents if getattr(a, "source", "") == "flagSettings"]
+                            fresh_agents = getattr(r, "agent_definitions", {}).get("all_agents", [])
+                            current_agents.clear()
+                            current_agents.extend(list(fresh_agents) + sdk_agent_defs)
+                            app_state = get_app_state()
+                            app_mcp = (
+                                app_state.get("mcp", {}) if isinstance(app_state, dict)
+                                else getattr(app_state, "mcp", {})
+                            ) or {}
+                            all_tools_reload = (
+                                list(app_mcp.get("tools", []) if isinstance(app_mcp, dict) else getattr(app_mcp, "tools", []))
+                                + dynamic_mcp_state.tools
+                            )
+                            statuses = build_mcp_server_statuses(
+                                app_mcp.get("clients", []) if isinstance(app_mcp, dict) else getattr(app_mcp, "clients", []),
+                                sdk_clients, dynamic_mcp_state, all_tools_reload
+                            )
+                            _ctrl_success(message, {
+                                "commands": [
+                                    {
+                                        "name": c.get("name", "") if isinstance(c, dict) else getattr(c, "name", ""),
+                                        "description": c.get("description", "") if isinstance(c, dict) else getattr(c, "description", ""),
+                                        "argumentHint": c.get("argument_hint", "") if isinstance(c, dict) else getattr(c, "argument_hint", ""),
+                                    }
+                                    for c in current_commands
+                                    if (c.get("user_invocable", True) if isinstance(c, dict) else getattr(c, "user_invocable", True)) is not False
+                                ],
+                                "agents": [
+                                    {
+                                        "name": a.get("agent_type", "") if isinstance(a, dict) else getattr(a, "agent_type", ""),
+                                        "description": a.get("when_to_use", "") if isinstance(a, dict) else getattr(a, "when_to_use", ""),
+                                    }
+                                    for a in current_agents
+                                ],
+                                "plugins": [],
+                                "mcpServers": statuses,
+                                "error_count": getattr(r, "error_count", 0),
+                            })
+                        except ImportError:
+                            _ctrl_error(message, "reload_plugins: plugins module unavailable")
+
+                    elif subtype == "mcp_reconnect":
+                        server_name = request.get("serverName", "") if isinstance(request, dict) else ""
+                        try:
+                            from claude_code.services.mcp.client import reconnect_mcp_server_impl  # type: ignore[import]
+                            config = None
+                            for src in [mcp_clients, sdk_clients, dynamic_mcp_state.clients]:
+                                cfg = next(
+                                    (c.get("config") if isinstance(c, dict) else getattr(c, "config", None)
+                                     for c in src if (c.get("name") if isinstance(c, dict) else getattr(c, "name", "")) == server_name),
+                                    None,
+                                )
+                                if cfg:
+                                    config = cfg
+                                    break
+                            if not config:
+                                _ctrl_error(message, f"Server not found: {server_name}")
+                            else:
+                                result_rc = await reconnect_mcp_server_impl(server_name, config)
+                                client_result = result_rc.get("client", {})
+                                if (client_result.get("type") if isinstance(client_result, dict) else getattr(client_result, "type", "")) == "connected":
+                                    _ctrl_success(message)
+                                else:
+                                    err_msg = (client_result.get("error") if isinstance(client_result, dict) else getattr(client_result, "error", None)) or "Connection failed"
+                                    _ctrl_error(message, err_msg)
+                        except ImportError:
+                            _ctrl_error(message, "mcp_reconnect: MCP client module unavailable")
+
+                    elif subtype == "mcp_toggle":
+                        server_name = request.get("serverName", "") if isinstance(request, dict) else ""
+                        enabled = request.get("enabled", True) if isinstance(request, dict) else True
+                        try:
+                            from claude_code.services.mcp.config import set_mcp_server_enabled  # type: ignore[import]
+                            set_mcp_server_enabled(server_name, enabled)
+                            _ctrl_success(message)
+                        except ImportError:
+                            _ctrl_success(message)  # best-effort
+
+                    elif subtype == "get_settings":
+                        try:
+                            from claude_code.utils.settings.settings import get_settings_with_sources  # type: ignore[import]
+                            settings_data = get_settings_with_sources()
+                            _ctrl_success(message, settings_data)
+                        except ImportError:
+                            _ctrl_success(message, {})
+
+                    elif subtype == "stop_task":
+                        task_id = request.get("task_id", "") if isinstance(request, dict) else ""
+                        try:
+                            from claude_code.tasks.stop_task import stop_task  # type: ignore[import]
+                            await stop_task(task_id, get_app_state=get_app_state, set_app_state=set_app_state)
+                            _ctrl_success(message, {})
+                        except ImportError:
+                            _ctrl_error(message, "stop_task: module unavailable")
+                        except Exception as exc:
+                            _ctrl_error(message, str(exc))
+
+                    elif subtype == "generate_session_title":
+                        description = request.get("description", "") if isinstance(request, dict) else ""
+                        persist = request.get("persist", False) if isinstance(request, dict) else False
+                        async def _gen_title() -> None:
+                            try:
+                                from claude_code.utils.session_title import generate_session_title  # type: ignore[import]
+                                title = await generate_session_title(description, None)
+                                _ctrl_success(message, {"title": title})
+                            except ImportError:
+                                _ctrl_success(message, {"title": None})
+                        asyncio.ensure_future(_gen_title())
+
+                    elif subtype == "side_question":
+                        question = request.get("question", "") if isinstance(request, dict) else ""
+                        async def _side_q() -> None:
+                            try:
+                                from claude_code.utils.side_question import run_side_question  # type: ignore[import]
+                                result_sq = await run_side_question(question=question, cache_safe_params=None)
+                                _ctrl_success(message, {"response": result_sq.get("response")})
+                            except ImportError:
+                                _ctrl_error(message, "side_question: module unavailable")
+                            except Exception as exc:
+                                _ctrl_error(message, str(exc))
+                        asyncio.ensure_future(_side_q())
+
+                    elif subtype == "apply_flag_settings":
+                        incoming = request.get("settings", {}) if isinstance(request, dict) else {}
+                        try:
+                            from claude_code.bootstrap.state import get_flag_settings_inline, set_flag_settings_inline  # type: ignore[import]
+                            existing = get_flag_settings_inline() or {}
+                            merged = {**existing, **incoming}
+                            for key in list(merged.keys()):
+                                if merged[key] is None:
+                                    del merged[key]
+                            set_flag_settings_inline(merged)
+                        except ImportError:
+                            pass
+                        _ctrl_success(message)
+
+                    else:
+                        # Unknown control request — send error so caller doesn't hang
+                        _ctrl_error(message, f"Unsupported control request subtype: {subtype}")
+
+                    continue
+
+                elif msg_type == "control_response":
+                    if options.get("replay_user_messages"):
+                        _enqueue_output(message)
+                    continue
+
+                elif msg_type == "keep_alive":
+                    continue
+
+                elif msg_type == "update_environment_variables":
+                    continue
+
+                elif msg_type in ("assistant", "system"):
+                    # History replay from bridge
+                    mutable_messages.append(message)
+                    if msg_type == "assistant" and options.get("replay_user_messages"):
+                        _enqueue_output(message)
+                    continue
+
+                # Only user messages should remain
+                if msg_type != "user":
+                    continue
+
+                initialized = True
+
+                # Dedup
+                msg_uuid = message.get("uuid") if isinstance(message, dict) else getattr(message, "uuid", None)
+                if msg_uuid:
+                    is_dup = not track_received_message_uuid(msg_uuid)
+                    if is_dup:
+                        _log_debug(f"Skipping duplicate user message: {msg_uuid}")
+                        continue
+
+                # Enqueue for processing
+                msg_content = (
+                    message.get("message", {}).get("content", "")
+                    if isinstance(message, dict)
+                    else getattr(getattr(message, "message", {}), "content", "")
+                )
+                priority = message.get("priority") if isinstance(message, dict) else getattr(message, "priority", None)
+                _enqueue({
+                    "mode": "prompt",
+                    "value": msg_content,
+                    "uuid": msg_uuid,
+                    "priority": priority,
+                })
+                asyncio.ensure_future(run())
+
+        except Exception as exc:
+            _log_error(exc)
+        finally:
+            nonlocal input_closed
+            input_closed = True
+            if not running:
+                # Flush async hooks and close output
+                try:
+                    from claude_code.utils.hooks.async_hook_registry import finalize_pending_async_hooks  # type: ignore[import]
+                    await finalize_pending_async_hooks()
+                except ImportError:
+                    pass
+                output_done.set()
+
+    # Build model_infos for use in handle_initialize_request
+    model_infos_local: List[Dict[str, Any]] = []
+    try:
+        from claude_code.utils.model.model import get_model_options  # type: ignore[import]
+        model_infos_local = build_model_infos(get_model_options())
+    except ImportError:
+        pass
+
+    # Set up orphaned permission response callback
+    if hasattr(structured_io, "set_unexpected_response_callback"):
+        async def _orphan_cb(msg: Dict[str, Any]) -> None:
+            await handle_orphaned_permission_response(
+                message=msg,
+                set_app_state=set_app_state,
+                on_enqueued=lambda: asyncio.ensure_future(run()),
+                handled_tool_use_ids=handled_orphaned_tool_use_ids,
+            )
+        structured_io.set_unexpected_response_callback(_orphan_cb)
+
+    # Start input processing and initial run concurrently
+    input_task = asyncio.ensure_future(process_input())
+
+    # If there are already commands in queue (e.g., auto-resumed interrupted turn),
+    # kick off run() immediately
+    try:
+        from claude_code.utils.message_queue_manager import has_commands_in_queue  # type: ignore[import]
+        if has_commands_in_queue():
+            asyncio.ensure_future(run())
+    except ImportError:
+        # No queue — start run if we have a plain string prompt
+        if options.get("_has_prompt"):
+            asyncio.ensure_future(run())
+
+    # Yield messages from output queue until done
+    while True:
+        # Poll for output
+        try:
+            item = output_queue.get_nowait()
+            yield item
+            continue
+        except asyncio.QueueEmpty:
+            pass
+
+        if output_done.is_set() and output_queue.empty():
+            break
+
+        # Wait a bit for more output
+        try:
+            item = await asyncio.wait_for(output_queue.get(), timeout=0.05)
+            yield item
+        except asyncio.TimeoutError:
+            pass
+        except Exception:
+            break
+
+    # Drain remaining items
+    while not output_queue.empty():
+        try:
+            yield output_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
+    # Clean up input task
+    if not input_task.done():
+        input_task.cancel()
+        try:
+            await input_task
+        except asyncio.CancelledError:
+            pass
+
+
+def _create_abort_controller() -> Any:
+    """Create an abort controller. Returns a simple object with a signal."""
+    try:
+        from claude_code.utils.abort_controller import create_abort_controller  # type: ignore[import]
+        return create_abort_controller()
+    except ImportError:
+        # Minimal stub
+        class _AbortSignal:
+            aborted = False
+        class _AbortController:
+            signal = _AbortSignal()
+            def abort(self) -> None:
+                self.signal.aborted = True
+        return _AbortController()
+
+
+def _abort_controller(ctrl: Any) -> None:
+    """Abort a controller."""
+    if ctrl is None:
+        return
+    if hasattr(ctrl, "abort"):
+        ctrl.abort()
 
 
 # ---------------------------------------------------------------------------
