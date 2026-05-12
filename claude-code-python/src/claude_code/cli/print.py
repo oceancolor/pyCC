@@ -2188,7 +2188,6 @@ async def run_headless_streaming(
         input_stream = getattr(structured_io, "structured_input", None)
         if input_stream is None:
             # No structured input — treat input as closed
-            nonlocal input_closed
             input_closed = True
             if not running:
                 output_done.set()
@@ -2566,7 +2565,6 @@ async def run_headless_streaming(
         except Exception as exc:
             _log_error(exc)
         finally:
-            nonlocal input_closed
             input_closed = True
             if not running:
                 # Flush async hooks and close output
