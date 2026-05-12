@@ -1,19 +1,37 @@
-# 原始 TS: commands/version.ts
-"""Version command - print the current Claude Code version."""
+"""
+/version command.
+Ported from commands/version.ts
+
+Prints the Claude Code version this session is running.
+"""
 from __future__ import annotations
 
 import importlib.metadata
-from typing import Any
+import os
+from typing import Any, Dict
+
+COMMAND_NAME = "version"
 
 
-def get_version() -> str:
-    """Return the installed package version, or a fallback string."""
+def _get_version() -> str:
     try:
         return importlib.metadata.version("claude-code")
     except importlib.metadata.PackageNotFoundError:
-        return "0.0.0-dev"
+        return "unknown"
 
 
-async def run(args: str = "", context: Any = None) -> dict[str, Any]:
-    """Entry point called by the command dispatcher."""
-    return {"type": "text", "value": get_version()}
+async def call(_args: str = "", **_kwargs: Any) -> Dict[str, Any]:
+    return {
+        "type": "text",
+        "value": _get_version(),
+    }
+
+
+COMMAND: Dict[str, Any] = {
+    "type": "local",
+    "name": COMMAND_NAME,
+    "description": "Print the version this session is running (not what autoupdate downloaded)",
+    "is_enabled": lambda: os.environ.get("USER_TYPE") == "ant",
+    "supports_non_interactive": True,
+    "load": lambda: {"call": call},
+}

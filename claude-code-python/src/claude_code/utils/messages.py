@@ -315,15 +315,6 @@ def with_memory_correction_hint(message: str) -> str:
 # Short message ID derivation
 # ---------------------------------------------------------------------------
 
-def derive_short_message_id(uuid_str: str) -> str:
-    """
-    Derive a short stable 6-char base36 string from a UUID.
-    Deterministic: same UUID always produces the same short ID.
-    """
-    hex_str = uuid_str.replace("-", "")[:10]
-    return format(int(hex_str, 16), "")[:6] if hex_str else "000000"
-
-
 def _int_to_base36(n: int) -> str:
     """Convert a non-negative integer to a base-36 string."""
     if n == 0:
@@ -335,7 +326,7 @@ def _int_to_base36(n: int) -> str:
     return "".join(reversed(digits))
 
 
-def derive_short_message_id(uuid_str: str) -> str:  # noqa: F811
+def derive_short_message_id(uuid_str: str) -> str:
     """
     Derive a short stable 6-char base36 string from a UUID.
     Deterministic: same UUID always produces the same short ID.
