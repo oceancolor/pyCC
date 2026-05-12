@@ -30,27 +30,28 @@
 - `setup.py`：会话初始化
 - FileReadTool/FileEditTool/FileWriteTool/GlobTool/GrepTool（完整实现）
 
-**当前状态（2026-05-12）：**
-- Python 文件总数 1,291 个，总行数 ~183,716 行
-- stub 文件（<20行）592 个（较上次减少约33个）
+**当前状态（2026-05-12 晚）：**
+- Python 文件总数 1,291 个，总行数 ~198,570 行
+- stub 文件（<20行）445 个（从 592 减少到 445，本轮消灭 147 个）
 - 测试 48 passed ✅ 全程稳定
 
-**本次新增（2026-05-12）：**
-- `utils/messages.py`（2906行）— 消息构造/标准化核心层
-- `utils/collapse_read_search.py`（1063行）— 连续read/search折叠
-- `services/compact/session_memory_compact.py`（869行）
-- `services/compact/auto_compact.py`（505行）
-- `services/compact/micro_compact.py`（624行）
-- `services/compact/prompt.py`（完整）— Compact prompt builder
-- `utils/model/model_options.py`（617行）
-- `utils/model/model_capabilities.py`（273行）
-- `utils/model/validate_model.py`（219行）
-- 20+ 个中小文件实现（analytics/index、memdir/paths、xml、signal、tempfile等）
+**本轮新增（2026-05-12 下午，4 subagent 并行）：**
+- `cli/print.py`：2108→3155行，runHeadless主循环+run_headless_streaming完整实现（SA1）
+- `services/api/claude.py`：1461→2131行，queryModel核心流+FullQueryOptions+streaming fallback（SA2）
+- stub批次1（SA3）：plugins/permissions/hooks/settings — 90个文件，+8608行
+- stub批次2（SA4）：computer_use/bash/api/telemetry/shell/mcp — 63个文件
+- 总计新增约 15,000+ 行
 
-**仍待推进的高优先级：**
-- `cli/print.py`（2108/5594行，38%）— runHeadless主循环大量缺失
-- `services/api/claude.py`（1461/3419行，43%）— queryModel核心流
-- stub 文件 592 个（最大缺口）
+**最近 git commits：**
+- `4b60c89` feat: fill stub files batch2 (SA4)
+- `a4ecfd9` feat: fill stub files batch1 (SA3)
+- `68b77a8` feat: complete cli/print.py (SA1)
+- `ab7ce64` feat: complete services/api/claude.py (SA2)
+
+**仍待推进：**
+- stub 文件 445 个（持续减少中）
+- `cli/print.py` 仍有部分 React/Ink 渲染逻辑待细化
+- 端到端集成测试（当前仅单元测试）
 
 ---
 
