@@ -1,10 +1,4 @@
-"""ant_trace command package stub (ANT-internal)."""
+"""ant-trace command package."""
 from __future__ import annotations
-
-NAME = "ant-trace"
-DESCRIPTION = "Trace ANT-internal events (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "ant-trace", "args": args}
+from .index import AntTraceCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["AntTraceCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

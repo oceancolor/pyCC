@@ -1,10 +1,4 @@
-"""summary command package stub (ANT-internal)."""
+"""summary command package."""
 from __future__ import annotations
-
-NAME = "summary"
-DESCRIPTION = "Generate a summary of the current conversation (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "summary", "args": args}
+from .index import SummaryCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["SummaryCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

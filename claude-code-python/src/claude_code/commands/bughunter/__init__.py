@@ -1,10 +1,4 @@
-"""bughunter command package stub (ANT-internal)."""
+"""bughunter command package."""
 from __future__ import annotations
-
-NAME = "bughunter"
-DESCRIPTION = "Start a bug hunting session (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "bughunter", "args": args}
+from .index import BughunterCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["BughunterCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

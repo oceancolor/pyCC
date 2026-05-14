@@ -1,10 +1,4 @@
-"""issue command package stub (ANT-internal)."""
+"""issue command package."""
 from __future__ import annotations
-
-NAME = "issue"
-DESCRIPTION = "Create a GitHub issue (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "issue", "args": args}
+from .index import IssueCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["IssueCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

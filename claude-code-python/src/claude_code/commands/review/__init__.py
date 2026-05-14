@@ -1,21 +1,4 @@
-"""Review command package stub."""
+"""review command package."""
 from __future__ import annotations
-from typing import Literal
-from dataclasses import dataclass
-
-NAME = "review"
-DESCRIPTION = "Review code changes"
-TYPE: Literal["local-jsx"] = "local-jsx"
-
-
-@dataclass
-class ReviewCommand:
-    type: str = TYPE
-    name: str = NAME
-    description: str = DESCRIPTION
-
-    async def call(self, args: str = "", context=None) -> dict:
-        return {"type": "local-command", "name": "review", "args": args}
-
-
-default = ReviewCommand()
+from .index import ReviewCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["ReviewCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

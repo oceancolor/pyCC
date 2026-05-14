@@ -1,10 +1,4 @@
-"""mock_limits command package stub (ANT-internal)."""
+"""mock-limits command package."""
 from __future__ import annotations
-
-NAME = "mock-limits"
-DESCRIPTION = "Simulate rate limiting for testing (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "mock-limits", "args": args}
+from .index import MockLimitsCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["MockLimitsCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

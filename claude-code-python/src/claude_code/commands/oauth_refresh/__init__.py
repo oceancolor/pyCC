@@ -1,10 +1,4 @@
-"""oauth_refresh command package stub (ANT-internal)."""
+"""oauth-refresh command package."""
 from __future__ import annotations
-
-NAME = "oauth-refresh"
-DESCRIPTION = "Force OAuth token refresh (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "oauth-refresh", "args": args}
+from .index import OauthRefreshCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["OauthRefreshCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

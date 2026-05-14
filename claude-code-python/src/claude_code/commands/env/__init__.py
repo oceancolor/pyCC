@@ -1,10 +1,4 @@
-"""env command package stub (ANT-internal)."""
+"""env command package."""
 from __future__ import annotations
-
-NAME = "env"
-DESCRIPTION = "Show environment variables (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "env", "args": args}
+from .index import EnvCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["EnvCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

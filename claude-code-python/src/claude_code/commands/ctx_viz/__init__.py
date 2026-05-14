@@ -1,10 +1,4 @@
-"""ctx_viz command package stub (ANT-internal)."""
+"""ctx-viz command package."""
 from __future__ import annotations
-
-NAME = "ctx-viz"
-DESCRIPTION = "Visualize context usage in detail (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "ctx-viz", "args": args}
+from .index import CtxVizCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["CtxVizCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

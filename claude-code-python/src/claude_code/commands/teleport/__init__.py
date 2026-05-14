@@ -1,21 +1,4 @@
-"""teleport command package stub (ANT-internal)."""
+"""teleport command package."""
 from __future__ import annotations
-from typing import Literal
-from dataclasses import dataclass
-
-NAME = "teleport"
-DESCRIPTION = "Teleport to a remote session (ANT-only)"
-TYPE: Literal["local-jsx"] = "local-jsx"
-
-
-@dataclass
-class TeleportCommand:
-    type: str = TYPE
-    name: str = NAME
-    description: str = DESCRIPTION
-
-    async def call(self, args: str = "", context=None) -> dict:
-        return {"type": "local-command", "name": "teleport", "args": args}
-
-
-default = TeleportCommand()
+from .index import TeleportCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["TeleportCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

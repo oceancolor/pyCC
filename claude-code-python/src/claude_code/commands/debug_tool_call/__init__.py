@@ -1,10 +1,4 @@
-"""debug_tool_call command package stub (ANT-internal)."""
+"""debug-tool-call command package."""
 from __future__ import annotations
-
-NAME = "debug-tool-call"
-DESCRIPTION = "Debug a tool call (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "debug-tool-call", "args": args}
+from .index import DebugToolCallCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["DebugToolCallCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

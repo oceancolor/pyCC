@@ -1,10 +1,4 @@
-"""perf_issue command package stub (ANT-internal)."""
+"""perf-issue command package."""
 from __future__ import annotations
-
-NAME = "perf-issue"
-DESCRIPTION = "Report a performance issue (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "perf-issue", "args": args}
+from .index import PerfIssueCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["PerfIssueCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

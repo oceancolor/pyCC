@@ -1,10 +1,4 @@
-"""onboarding command package stub (ANT-internal)."""
+"""onboarding command package."""
 from __future__ import annotations
-
-NAME = "onboarding"
-DESCRIPTION = "Restart the onboarding flow (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "onboarding", "args": args}
+from .index import OnboardingCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["OnboardingCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

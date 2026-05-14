@@ -1,10 +1,4 @@
-"""reset_limits command package stub (ANT-internal)."""
+"""reset-limits command package."""
 from __future__ import annotations
-
-NAME = "reset-limits"
-DESCRIPTION = "Reset usage limits (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "reset-limits", "args": args}
+from .index import ResetLimitsCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["ResetLimitsCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

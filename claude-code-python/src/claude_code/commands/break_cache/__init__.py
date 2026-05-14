@@ -1,10 +1,4 @@
-"""break_cache command package stub (ANT-internal)."""
+"""break-cache command package."""
 from __future__ import annotations
-
-NAME = "break-cache"
-DESCRIPTION = "Break the prompt cache (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "break-cache", "args": args}
+from .index import BreakCacheCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["BreakCacheCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

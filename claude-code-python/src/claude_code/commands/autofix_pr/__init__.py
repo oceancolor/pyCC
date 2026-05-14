@@ -1,10 +1,4 @@
-"""autofix_pr command package stub (ANT-internal)."""
+"""autofix-pr command package."""
 from __future__ import annotations
-
-NAME = "autofix-pr"
-DESCRIPTION = "Automatically fix a PR (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "autofix-pr", "args": args}
+from .index import AutofixPrCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["AutofixPrCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

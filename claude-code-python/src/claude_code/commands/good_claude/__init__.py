@@ -1,10 +1,4 @@
-"""good_claude command package stub (ANT-internal)."""
+"""good-claude command package."""
 from __future__ import annotations
-
-NAME = "good-claude"
-DESCRIPTION = "Send positive feedback to improve Claude (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "good-claude", "args": args}
+from .index import GoodClaudeCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["GoodClaudeCommand", "default", "NAME", "DESCRIPTION", "TYPE"]

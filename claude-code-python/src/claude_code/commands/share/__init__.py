@@ -1,10 +1,4 @@
-"""share command package stub (ANT-internal)."""
+"""share command package."""
 from __future__ import annotations
-
-NAME = "share"
-DESCRIPTION = "Share the current conversation (ANT-only)"
-TYPE = "local"
-
-
-async def call(args: str = "", context=None) -> dict:
-    return {"type": "local-command", "name": "share", "args": args}
+from .index import ShareCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["ShareCommand", "default", "NAME", "DESCRIPTION", "TYPE"]
