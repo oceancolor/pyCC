@@ -1,11 +1,12 @@
-"""Remote managed settings. Stub."""
-from __future__ import annotations
-from typing import Any, Dict
+"""Remote managed settings service index."""
+from claude_code.services.remote_managed_settings.remote_managed_settings import (
+    get_remote_managed_settings,
+    load_remote_managed_settings,
+    clear_remote_managed_settings_cache,
+)
 
-
-def get_remote_settings() -> Dict[str, Any]:
-    return {}
-
-
-async def sync_remote_settings() -> None:
-    pass
+__all__ = [
+    "get_remote_managed_settings",
+    "load_remote_managed_settings",
+    "clear_remote_managed_settings_cache",
+]
