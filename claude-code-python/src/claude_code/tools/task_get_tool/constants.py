@@ -1,1 +1,2 @@
-# stub constants.ts
+"""TaskGetTool constants. Ported from TaskGetTool/constants.ts"""
+TASK_GET_TOOL_NAME = "TaskGet"
