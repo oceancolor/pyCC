@@ -1,4 +1,21 @@
-# 原始 TS: bridge/
-from .types import BridgeMessage, BridgeRequest, BridgeResponse
+"""Bridge package for Claude Code.
 
-__all__ = ["BridgeMessage", "BridgeRequest", "BridgeResponse"]
+Provides the bridge between the REPL interface and the backend API,
+including message types, request/response protocols, and the main
+bridge client. Ported from the TypeScript bridge/ module.
+"""
+from __future__ import annotations
+
+from claude_code.bridge.types import (
+    BridgeApiClient,
+    BridgeConfig,
+    WorkData,
+    WorkResponse,
+)
+
+__all__ = [
+    "WorkData",
+    "WorkResponse",
+    "BridgeConfig",
+    "BridgeApiClient",
+]
