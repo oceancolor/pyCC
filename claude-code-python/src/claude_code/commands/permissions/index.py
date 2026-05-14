@@ -15,6 +15,7 @@ class PermissionsCommand:
     type: str = TYPE
     name: str = NAME
     description: str = DESCRIPTION
+    is_enabled: object = None
     aliases: List[str] = field(default_factory=lambda: ['allowed-tools'])
 
     async def call(self, args: str = "", context=None) -> dict:

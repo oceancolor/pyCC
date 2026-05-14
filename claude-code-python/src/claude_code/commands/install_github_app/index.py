@@ -16,6 +16,7 @@ class InstallGithubAppCommand:
     type: str = TYPE
     name: str = NAME
     description: str = DESCRIPTION
+    is_enabled: object = None
     availability: List[str] = field(default_factory=lambda: ['claude-ai', 'console'])
 
     async def call(self, args: str = "", context=None) -> dict:

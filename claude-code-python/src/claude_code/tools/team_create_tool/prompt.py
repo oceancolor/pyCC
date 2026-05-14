@@ -1,1 +1,25 @@
-# stub prompt.ts
+"""TeamCreateTool prompt. Ported from TeamCreateTool/prompt.ts"""
+from __future__ import annotations
+
+
+def get_prompt() -> str:
+    return """
+# TeamCreate
+
+## When to Use
+
+Use this tool proactively whenever:
+- The user explicitly asks to use a team, swarm, or group of agents
+- The user mentions wanting agents to work together, coordinate, or collaborate
+- A task is complex enough that it would benefit from parallel work by multiple agents (e.g., building a full-stack feature with frontend and backend work, refactoring a codebase while keeping tests passing, implementing a multi-step project with research, planning, and coding phases)
+
+When in doubt about whether a task warrants a team, prefer spawning a team.
+
+## Choosing Agent Types for Teammates
+
+When spawning teammates via the Agent tool, choose the `subagent_type` based on what tools the agent needs for its task. Each agent type has a different set of available tools — match the agent to the work:
+
+- **Read-only agents** (e.g., Explore, Plan) cannot edit or write files. Only assign them research, search, or planning tasks. Never assign them implementation work.
+- **Full-capability agents** (e.g., general-purpose) have access to all tools including file editing, writing, and bash. Use these for tasks that require making changes.
+- **Custom agents** defined in `.claude/agents/` may have their own tool restrictions. Check their descriptions to understand what they can and cannot do.
+""".strip()

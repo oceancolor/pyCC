@@ -1,22 +1,8 @@
-"""Logout command package."""
+"""Logout command package.
+
+Ported from commands/logout/
+"""
 from __future__ import annotations
-from typing import Literal
-from dataclasses import dataclass
+from .index import call
 
-NAME = "logout"
-DESCRIPTION = "Sign out from your Anthropic account"
-TYPE: Literal["local-jsx"] = "local-jsx"
-
-
-@dataclass
-class LogoutCommand:
-    type: str = TYPE
-    name: str = NAME
-    description: str = DESCRIPTION
-
-    async def call(self, args: str = "", context=None) -> dict:
-        """Handle /logout command."""
-        return {"type": "text", "value": "/logout not yet implemented"}
-
-
-default = LogoutCommand()
+__all__ = ["call"]

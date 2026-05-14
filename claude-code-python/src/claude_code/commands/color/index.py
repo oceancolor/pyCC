@@ -17,6 +17,7 @@ class ColorCommand:
     type: str = TYPE
     name: str = NAME
     description: str = DESCRIPTION
+    is_enabled: object = None
     immediate: bool = True
 
     async def call(self, args: str = "", context=None) -> dict:

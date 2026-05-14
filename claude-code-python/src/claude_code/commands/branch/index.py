@@ -16,6 +16,7 @@ class BranchCommand:
     type: str = TYPE
     name: str = NAME
     description: str = DESCRIPTION
+    is_enabled: object = None
     aliases: List[str] = field(default_factory=lambda: ['fork'])
 
     async def call(self, args: str = "", context=None) -> dict:

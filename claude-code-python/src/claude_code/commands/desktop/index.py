@@ -16,6 +16,7 @@ class DesktopCommand:
     type: str = TYPE
     name: str = NAME
     description: str = DESCRIPTION
+    is_enabled: object = None
     aliases: List[str] = field(default_factory=lambda: ['app'])
     availability: List[str] = field(default_factory=lambda: ['claude-ai'])
 

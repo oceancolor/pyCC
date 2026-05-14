@@ -239,6 +239,7 @@ def _make_insights_command() -> Optional[Any]:
             content_length = 0
             progress_message = "analyzing your sessions"
             source = "builtin"
+            is_enabled = None  # use default (enabled)
 
             async def get_prompt_for_command(self, args: Any, context: Any) -> Any:
                 real = _try_import("claude_code.commands.insights", "default")

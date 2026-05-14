@@ -15,6 +15,7 @@ class ContextCommand:
     type: str = TYPE
     name: str = NAME
     description: str = DESCRIPTION
+    is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
         """Handle /context command."""

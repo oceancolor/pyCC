@@ -16,6 +16,7 @@ class HeapdumpCommand:
     type: str = TYPE
     name: str = NAME
     description: str = DESCRIPTION
+    is_enabled: object = None
     is_hidden: bool = IS_HIDDEN
 
     async def call(self, args: str = "", context=None) -> dict:
