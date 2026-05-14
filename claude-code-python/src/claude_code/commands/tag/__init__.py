@@ -1,0 +1,4 @@
+"""/tag command package."""
+from __future__ import annotations
+from .index import TagCommand, default, NAME, DESCRIPTION, TYPE
+__all__ = ["TagCommand", "default", "NAME", "DESCRIPTION", "TYPE"]
