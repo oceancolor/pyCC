@@ -19,8 +19,11 @@ class MobileCommand:
     aliases: List[str] = field(default_factory=lambda: ['ios', 'android'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /mobile command."""
-        return {"type": "text", "value": f"/mobile not yet implemented"}
+        """Handle /mobile command.
+
+        Set up Claude Code mobile companion.
+        """
+        return {"type": "local-command", "name": "mobile", "args": args}
 
 
 default = MobileCommand()

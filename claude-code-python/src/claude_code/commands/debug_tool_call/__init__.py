@@ -7,4 +7,4 @@ TYPE = "local"
 
 
 async def call(args: str = "", context=None) -> dict:
-    return {"type": "text", "value": "/debug-tool-call not yet implemented"}
+    return {"type": "local-command", "name": "debug-tool-call", "args": args}

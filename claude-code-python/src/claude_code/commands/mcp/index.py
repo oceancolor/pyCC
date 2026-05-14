@@ -21,8 +21,11 @@ class McpCommand:
     immediate: bool = True
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /mcp command."""
-        return {"type": "text", "value": f"/mcp not yet implemented"}
+        """Handle /mcp command.
+
+        Manage MCP (Model Context Protocol) servers.
+        """
+        return {"type": "local-command", "name": "mcp", "args": args}
 
 
 default = McpCommand()

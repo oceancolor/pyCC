@@ -18,8 +18,11 @@ class RemoteEnvCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /remote-env command."""
-        return {"type": "text", "value": f"/remote-env not yet implemented"}
+        """Handle /remote-env command.
+
+        Manage remote environment settings.
+        """
+        return {"type": "local-command", "name": "remote-env", "args": args}
 
 
 default = RemoteEnvCommand()

@@ -18,8 +18,11 @@ class PrCommentsCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /pr-comments command."""
-        return {"type": "text", "value": f"/pr-comments not yet implemented"}
+        """Handle /pr-comments command.
+
+        Show and respond to pull request comments.
+        """
+        return {"type": "local-command", "name": "pr-comments", "args": args}
 
 
 default = PrCommentsCommand()

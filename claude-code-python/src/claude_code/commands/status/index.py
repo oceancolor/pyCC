@@ -20,8 +20,11 @@ class StatusCommand:
     immediate: bool = True
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /status command."""
-        return {"type": "text", "value": f"/status not yet implemented"}
+        """Handle /status command.
+
+        Show current project status.
+        """
+        return {"type": "local-command", "name": "status", "args": args}
 
 
 default = StatusCommand()

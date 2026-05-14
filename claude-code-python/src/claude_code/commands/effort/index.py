@@ -19,8 +19,11 @@ class EffortCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /effort command."""
-        return {"type": "text", "value": f"/effort not yet implemented"}
+        """Handle /effort command.
+
+        Toggle extended thinking / effort level.
+        """
+        return {"type": "local-command", "name": "effort", "args": args}
 
 
 default = EffortCommand()

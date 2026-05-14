@@ -19,8 +19,11 @@ class PlanCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /plan command."""
-        return {"type": "text", "value": f"/plan not yet implemented"}
+        """Handle /plan command.
+
+        Toggle plan mode for structured edits.
+        """
+        return {"type": "local-command", "name": "plan", "args": args}
 
 
 default = PlanCommand()

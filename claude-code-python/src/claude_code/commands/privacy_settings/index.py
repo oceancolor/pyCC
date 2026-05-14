@@ -18,8 +18,11 @@ class PrivacySettingsCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /privacy command."""
-        return {"type": "text", "value": f"/privacy not yet implemented"}
+        """Handle /privacy command.
+
+        Configure privacy and telemetry settings.
+        """
+        return {"type": "local-command", "name": "privacy", "args": args}
 
 
 default = PrivacySettingsCommand()

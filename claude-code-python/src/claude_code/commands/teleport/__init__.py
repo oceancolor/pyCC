@@ -15,7 +15,7 @@ class TeleportCommand:
     description: str = DESCRIPTION
 
     async def call(self, args: str = "", context=None) -> dict:
-        return {"type": "text", "value": "/teleport not yet implemented"}
+        return {"type": "local-command", "name": "teleport", "args": args}
 
 
 default = TeleportCommand()

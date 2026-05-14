@@ -21,8 +21,11 @@ class BtwCommand:
     immediate: bool = True
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /btw command."""
-        return {"type": "text", "value": f"/btw not yet implemented"}
+        """Handle /btw command.
+
+        Send a background message while coding.
+        """
+        return {"type": "local-command", "name": "btw", "args": args}
 
 
 default = BtwCommand()

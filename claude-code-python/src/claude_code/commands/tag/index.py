@@ -19,8 +19,11 @@ class TagCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /tag command."""
-        return {"type": "text", "value": f"/tag not yet implemented"}
+        """Handle /tag command.
+
+        Add or view tags for the current session.
+        """
+        return {"type": "local-command", "name": "tag", "args": args}
 
 
 default = TagCommand()

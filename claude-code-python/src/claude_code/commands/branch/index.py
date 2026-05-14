@@ -20,8 +20,11 @@ class BranchCommand:
     aliases: List[str] = field(default_factory=lambda: ['fork'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /branch command."""
-        return {"type": "text", "value": f"/branch not yet implemented"}
+        """Handle /branch command.
+
+        Create or switch to a git branch.
+        """
+        return {"type": "local-command", "name": "branch", "args": args}
 
 
 default = BranchCommand()

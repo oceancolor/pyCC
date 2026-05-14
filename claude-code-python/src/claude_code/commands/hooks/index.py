@@ -20,8 +20,11 @@ class HooksCommand:
     immediate: bool = True
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /hooks command."""
-        return {"type": "text", "value": f"/hooks not yet implemented"}
+        """Handle /hooks command.
+
+        View and manage hook configurations.
+        """
+        return {"type": "local-command", "name": "hooks", "args": args}
 
 
 default = HooksCommand()

@@ -18,8 +18,11 @@ class DoctorCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /doctor command."""
-        return {"type": "text", "value": f"/doctor not yet implemented"}
+        """Handle /doctor command.
+
+        Check Claude Code installation health.
+        """
+        return {"type": "local-command", "name": "doctor", "args": args}
 
 
 default = DoctorCommand()

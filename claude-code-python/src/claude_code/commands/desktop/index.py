@@ -21,8 +21,11 @@ class DesktopCommand:
     availability: List[str] = field(default_factory=lambda: ['claude-ai'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /desktop command."""
-        return {"type": "text", "value": f"/desktop not yet implemented"}
+        """Handle /desktop command.
+
+        Set up Claude Code desktop integration.
+        """
+        return {"type": "local-command", "name": "desktop", "args": args}
 
 
 default = DesktopCommand()

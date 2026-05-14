@@ -7,4 +7,4 @@ TYPE = "local"
 
 
 async def call(args: str = "", context=None) -> dict:
-    return {"type": "text", "value": "/mock-limits not yet implemented"}
+    return {"type": "local-command", "name": "mock-limits", "args": args}

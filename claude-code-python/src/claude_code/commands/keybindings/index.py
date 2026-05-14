@@ -19,8 +19,11 @@ class KeybindingsCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /keybindings command."""
-        return {"type": "text", "value": f"/keybindings not yet implemented"}
+        """Handle /keybindings command.
+
+        Show or customize keyboard shortcuts.
+        """
+        return {"type": "local-command", "name": "keybindings", "args": args}
 
 
 default = KeybindingsCommand()

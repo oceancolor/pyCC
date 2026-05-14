@@ -7,4 +7,4 @@ TYPE = "local"
 
 
 async def call(args: str = "", context=None) -> dict:
-    return {"type": "text", "value": "/share not yet implemented"}
+    return {"type": "local-command", "name": "share", "args": args}

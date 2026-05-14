@@ -15,7 +15,7 @@ class ModelCommand:
     description: str = DESCRIPTION
 
     async def call(self, args: str = "", context=None) -> dict:
-        return {"type": "text", "value": "/model not yet implemented"}
+        return {"type": "local-command", "name": "model", "args": args}
 
 
 default = ModelCommand()

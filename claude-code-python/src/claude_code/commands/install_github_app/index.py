@@ -20,8 +20,11 @@ class InstallGithubAppCommand:
     availability: List[str] = field(default_factory=lambda: ['claude-ai', 'console'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /install-github-app command."""
-        return {"type": "text", "value": f"/install-github-app not yet implemented"}
+        """Handle /install-github-app command.
+
+        Install Claude GitHub Actions for a repository.
+        """
+        return {"type": "local-command", "name": "install-github-app", "args": args}
 
 
 default = InstallGithubAppCommand()

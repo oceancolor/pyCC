@@ -21,8 +21,11 @@ class ColorCommand:
     immediate: bool = True
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /color command."""
-        return {"type": "text", "value": f"/color not yet implemented"}
+        """Handle /color command.
+
+        Toggle or change terminal color settings.
+        """
+        return {"type": "local-command", "name": "color", "args": args}
 
 
 default = ColorCommand()

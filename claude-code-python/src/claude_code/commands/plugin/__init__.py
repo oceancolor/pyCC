@@ -15,7 +15,7 @@ class PluginCommand:
     description: str = DESCRIPTION
 
     async def call(self, args: str = "", context=None) -> dict:
-        return {"type": "text", "value": "/plugin not yet implemented"}
+        return {"type": "local-command", "name": "plugin", "args": args}
 
 
 default = PluginCommand()

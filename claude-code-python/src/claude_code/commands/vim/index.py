@@ -19,8 +19,11 @@ class VimCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /vim command."""
-        return {"type": "text", "value": f"/vim not yet implemented"}
+        """Handle /vim command.
+
+        Toggle Vim keybindings.
+        """
+        return {"type": "local-command", "name": "vim", "args": args}
 
 
 default = VimCommand()

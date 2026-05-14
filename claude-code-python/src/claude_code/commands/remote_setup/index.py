@@ -20,8 +20,11 @@ class RemoteSetupCommand:
     availability: List[str] = field(default_factory=lambda: ['claude-ai'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /web-setup command."""
-        return {"type": "text", "value": f"/web-setup not yet implemented"}
+        """Handle /web-setup command.
+
+        Set up Claude Code for remote/web use.
+        """
+        return {"type": "local-command", "name": "web-setup", "args": args}
 
 
 default = RemoteSetupCommand()

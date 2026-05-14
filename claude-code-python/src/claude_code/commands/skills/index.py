@@ -18,8 +18,11 @@ class SkillsCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /skills command."""
-        return {"type": "text", "value": f"/skills not yet implemented"}
+        """Handle /skills command.
+
+        List and manage Claude Code skills.
+        """
+        return {"type": "local-command", "name": "skills", "args": args}
 
 
 default = SkillsCommand()

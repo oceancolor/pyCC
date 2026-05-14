@@ -18,8 +18,11 @@ class StickersCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /stickers command."""
-        return {"type": "text", "value": f"/stickers not yet implemented"}
+        """Handle /stickers command.
+
+        Show fun stickers (ASCII art).
+        """
+        return {"type": "local-command", "name": "stickers", "args": args}
 
 
 default = StickersCommand()

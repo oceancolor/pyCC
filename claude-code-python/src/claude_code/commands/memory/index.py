@@ -18,8 +18,11 @@ class MemoryCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /memory command."""
-        return {"type": "text", "value": f"/memory not yet implemented"}
+        """Handle /memory command.
+
+        Edit Claude memory files.
+        """
+        return {"type": "local-command", "name": "memory", "args": args}
 
 
 default = MemoryCommand()

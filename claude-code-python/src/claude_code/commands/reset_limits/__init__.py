@@ -7,4 +7,4 @@ TYPE = "local"
 
 
 async def call(args: str = "", context=None) -> dict:
-    return {"type": "text", "value": "/reset-limits not yet implemented"}
+    return {"type": "local-command", "name": "reset-limits", "args": args}

@@ -20,8 +20,11 @@ class ResumeCommand:
     aliases: List[str] = field(default_factory=lambda: ['continue'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /resume command."""
-        return {"type": "text", "value": f"/resume not yet implemented"}
+        """Handle /resume command.
+
+        Resume a previous session.
+        """
+        return {"type": "local-command", "name": "resume", "args": args}
 
 
 default = ResumeCommand()

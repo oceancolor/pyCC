@@ -21,8 +21,11 @@ class FastCommand:
     availability: List[str] = field(default_factory=lambda: ['claude-ai', 'console'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /fast command."""
-        return {"type": "text", "value": f"/fast not yet implemented"}
+        """Handle /fast command.
+
+        Toggle fast (lightweight) model mode.
+        """
+        return {"type": "local-command", "name": "fast", "args": args}
 
 
 default = FastCommand()

@@ -18,8 +18,11 @@ class ThemeCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /theme command."""
-        return {"type": "text", "value": f"/theme not yet implemented"}
+        """Handle /theme command.
+
+        Change the Claude Code color theme.
+        """
+        return {"type": "local-command", "name": "theme", "args": args}
 
 
 default = ThemeCommand()

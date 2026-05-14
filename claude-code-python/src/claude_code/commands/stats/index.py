@@ -18,8 +18,11 @@ class StatsCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /stats command."""
-        return {"type": "text", "value": f"/stats not yet implemented"}
+        """Handle /stats command.
+
+        Show session statistics.
+        """
+        return {"type": "local-command", "name": "stats", "args": args}
 
 
 default = StatsCommand()

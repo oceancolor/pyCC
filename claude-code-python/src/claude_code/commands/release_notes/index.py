@@ -19,8 +19,11 @@ class ReleaseNotesCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /release-notes command."""
-        return {"type": "text", "value": f"/release-notes not yet implemented"}
+        """Handle /release-notes command.
+
+        Show latest release notes.
+        """
+        return {"type": "local-command", "name": "release-notes", "args": args}
 
 
 default = ReleaseNotesCommand()

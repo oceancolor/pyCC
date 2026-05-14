@@ -18,8 +18,11 @@ class DiffCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /diff command."""
-        return {"type": "text", "value": f"/diff not yet implemented"}
+        """Handle /diff command.
+
+        Show uncommitted changes and per-turn diffs.
+        """
+        return {"type": "local-command", "name": "diff", "args": args}
 
 
 default = DiffCommand()

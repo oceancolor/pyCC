@@ -7,4 +7,4 @@ TYPE = "local"
 
 
 async def call(args: str = "", context=None) -> dict:
-    return {"type": "text", "value": "/ant-trace not yet implemented"}
+    return {"type": "local-command", "name": "ant-trace", "args": args}

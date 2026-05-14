@@ -19,8 +19,11 @@ class TerminalSetupCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /terminal-setup command."""
-        return {"type": "text", "value": f"/terminal-setup not yet implemented"}
+        """Handle /terminal-setup command.
+
+        Configure terminal integration.
+        """
+        return {"type": "local-command", "name": "terminal-setup", "args": args}
 
 
 default = TerminalSetupCommand()

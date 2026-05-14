@@ -19,8 +19,11 @@ class ExportCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /export command."""
-        return {"type": "text", "value": f"/export not yet implemented"}
+        """Handle /export command.
+
+        Export conversation history to a file.
+        """
+        return {"type": "local-command", "name": "export", "args": args}
 
 
 default = ExportCommand()

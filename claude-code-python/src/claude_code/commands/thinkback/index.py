@@ -18,8 +18,11 @@ class ThinkbackCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /think-back command."""
-        return {"type": "text", "value": f"/think-back not yet implemented"}
+        """Handle /think-back command.
+
+        Replay thinking steps from the previous response.
+        """
+        return {"type": "local-command", "name": "think-back", "args": args}
 
 
 default = ThinkbackCommand()

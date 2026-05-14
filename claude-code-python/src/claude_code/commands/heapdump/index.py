@@ -20,8 +20,11 @@ class HeapdumpCommand:
     is_hidden: bool = IS_HIDDEN
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /heapdump command."""
-        return {"type": "text", "value": f"/heapdump not yet implemented"}
+        """Handle /heapdump command.
+
+        Generate a heap dump for diagnostics.
+        """
+        return {"type": "local-command", "name": "heapdump", "args": args}
 
 
 default = HeapdumpCommand()

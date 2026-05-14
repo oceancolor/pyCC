@@ -18,8 +18,11 @@ class AgentsCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /agents command."""
-        return {"type": "text", "value": f"/agents not yet implemented"}
+        """Handle /agents command.
+
+        List and manage background agents.
+        """
+        return {"type": "local-command", "name": "agents", "args": args}
 
 
 default = AgentsCommand()

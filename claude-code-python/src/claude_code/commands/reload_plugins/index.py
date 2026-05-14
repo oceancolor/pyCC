@@ -19,8 +19,11 @@ class ReloadPluginsCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /reload-plugins command."""
-        return {"type": "text", "value": f"/reload-plugins not yet implemented"}
+        """Handle /reload-plugins command.
+
+        Reload all Claude Code plugins.
+        """
+        return {"type": "local-command", "name": "reload-plugins", "args": args}
 
 
 default = ReloadPluginsCommand()

@@ -19,8 +19,11 @@ class RateLimitOptionsCommand:
     is_hidden: bool = IS_HIDDEN
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /rate-limit-options command."""
-        return {"type": "text", "value": f"/rate-limit-options not yet implemented"}
+        """Handle /rate-limit-options command.
+
+        Configure API rate limit handling.
+        """
+        return {"type": "local-command", "name": "rate-limit-options", "args": args}
 
 
 default = RateLimitOptionsCommand()

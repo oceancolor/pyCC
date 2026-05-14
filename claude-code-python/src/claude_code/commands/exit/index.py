@@ -21,8 +21,11 @@ class ExitCommand:
     immediate: bool = True
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /exit command."""
-        return {"type": "text", "value": f"/exit not yet implemented"}
+        """Handle /exit command.
+
+        Exit the current Claude Code session.
+        """
+        return {"type": "local-command", "name": "exit", "args": args}
 
 
 default = ExitCommand()

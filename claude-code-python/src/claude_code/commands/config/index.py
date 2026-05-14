@@ -19,8 +19,11 @@ class ConfigCommand:
     aliases: List[str] = field(default_factory=lambda: ['settings'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /config command."""
-        return {"type": "text", "value": f"/config not yet implemented"}
+        """Handle /config command.
+
+        Show or modify Claude Code configuration.
+        """
+        return {"type": "local-command", "name": "config", "args": args}
 
 
 default = ConfigCommand()

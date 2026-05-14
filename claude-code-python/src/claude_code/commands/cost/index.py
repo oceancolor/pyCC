@@ -18,8 +18,11 @@ class CostCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /cost command."""
-        return {"type": "text", "value": f"/cost not yet implemented"}
+        """Handle /cost command.
+
+        Show token usage and cost for the current session.
+        """
+        return {"type": "local-command", "name": "cost", "args": args}
 
 
 default = CostCommand()

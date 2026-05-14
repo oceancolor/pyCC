@@ -19,8 +19,11 @@ class PermissionsCommand:
     aliases: List[str] = field(default_factory=lambda: ['allowed-tools'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /permissions command."""
-        return {"type": "text", "value": f"/permissions not yet implemented"}
+        """Handle /permissions command.
+
+        View and manage tool permissions.
+        """
+        return {"type": "local-command", "name": "permissions", "args": args}
 
 
 default = PermissionsCommand()

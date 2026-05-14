@@ -21,8 +21,11 @@ class InstallSlackAppCommand:
     availability: List[str] = field(default_factory=lambda: ['claude-ai'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /install-slack-app command."""
-        return {"type": "text", "value": f"/install-slack-app not yet implemented"}
+        """Handle /install-slack-app command.
+
+        Install Claude Slack app integration.
+        """
+        return {"type": "local-command", "name": "install-slack-app", "args": args}
 
 
 default = InstallSlackAppCommand()

@@ -18,8 +18,11 @@ class SandboxToggleCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /sandbox command."""
-        return {"type": "text", "value": f"/sandbox not yet implemented"}
+        """Handle /sandbox command.
+
+        Toggle sandbox execution mode.
+        """
+        return {"type": "local-command", "name": "sandbox", "args": args}
 
 
 default = SandboxToggleCommand()

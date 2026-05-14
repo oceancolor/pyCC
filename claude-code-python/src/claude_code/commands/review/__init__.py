@@ -15,7 +15,7 @@ class ReviewCommand:
     description: str = DESCRIPTION
 
     async def call(self, args: str = "", context=None) -> dict:
-        return {"type": "text", "value": "/review not yet implemented"}
+        return {"type": "local-command", "name": "review", "args": args}
 
 
 default = ReviewCommand()

@@ -20,8 +20,11 @@ class UpgradeCommand:
     availability: List[str] = field(default_factory=lambda: ['claude-ai'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /upgrade command."""
-        return {"type": "text", "value": f"/upgrade not yet implemented"}
+        """Handle /upgrade command.
+
+        Upgrade Claude Code to the latest version.
+        """
+        return {"type": "local-command", "name": "upgrade", "args": args}
 
 
 default = UpgradeCommand()

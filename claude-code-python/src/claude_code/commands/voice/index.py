@@ -21,8 +21,11 @@ class VoiceCommand:
     availability: List[str] = field(default_factory=lambda: ['claude-ai'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /voice command."""
-        return {"type": "text", "value": f"/voice not yet implemented"}
+        """Handle /voice command.
+
+        Toggle voice input mode.
+        """
+        return {"type": "local-command", "name": "voice", "args": args}
 
 
 default = VoiceCommand()

@@ -20,8 +20,11 @@ class ChromeCommand:
     availability: List[str] = field(default_factory=lambda: ['claude-ai'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /chrome command."""
-        return {"type": "text", "value": f"/chrome not yet implemented"}
+        """Handle /chrome command.
+
+        Launch Claude in Chrome extension mode.
+        """
+        return {"type": "local-command", "name": "chrome", "args": args}
 
 
 default = ChromeCommand()

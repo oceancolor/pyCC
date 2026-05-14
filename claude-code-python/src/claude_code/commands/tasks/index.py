@@ -19,8 +19,11 @@ class TasksCommand:
     aliases: List[str] = field(default_factory=lambda: ['bashes'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /tasks command."""
-        return {"type": "text", "value": f"/tasks not yet implemented"}
+        """Handle /tasks command.
+
+        List and manage background tasks.
+        """
+        return {"type": "local-command", "name": "tasks", "args": args}
 
 
 default = TasksCommand()

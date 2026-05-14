@@ -18,8 +18,11 @@ class LoginCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /login command."""
-        return {"type": "text", "value": f"/login not yet implemented"}
+        """Handle /login command.
+
+        Log in to your Anthropic account.
+        """
+        return {"type": "local-command", "name": "login", "args": args}
 
 
 default = LoginCommand()

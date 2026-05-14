@@ -18,8 +18,11 @@ class ExtraUsageCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /extra-usage command."""
-        return {"type": "text", "value": f"/extra-usage not yet implemented"}
+        """Handle /extra-usage command.
+
+        Show extended usage statistics.
+        """
+        return {"type": "local-command", "name": "extra-usage", "args": args}
 
 
 default = ExtraUsageCommand()

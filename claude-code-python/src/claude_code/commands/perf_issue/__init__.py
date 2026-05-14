@@ -7,4 +7,4 @@ TYPE = "local"
 
 
 async def call(args: str = "", context=None) -> dict:
-    return {"type": "text", "value": "/perf-issue not yet implemented"}
+    return {"type": "local-command", "name": "perf-issue", "args": args}

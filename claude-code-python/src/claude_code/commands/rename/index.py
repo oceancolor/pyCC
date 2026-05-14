@@ -21,8 +21,11 @@ class RenameCommand:
     immediate: bool = True
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /rename command."""
-        return {"type": "text", "value": f"/rename not yet implemented"}
+        """Handle /rename command.
+
+        Rename the current session.
+        """
+        return {"type": "local-command", "name": "rename", "args": args}
 
 
 default = RenameCommand()

@@ -19,8 +19,11 @@ class OutputStyleCommand:
     is_hidden: bool = IS_HIDDEN
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /output-style command."""
-        return {"type": "text", "value": f"/output-style not yet implemented"}
+        """Handle /output-style command.
+
+        Toggle output style (streaming/non-streaming).
+        """
+        return {"type": "local-command", "name": "output-style", "args": args}
 
 
 default = OutputStyleCommand()

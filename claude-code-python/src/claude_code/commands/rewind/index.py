@@ -20,8 +20,11 @@ class RewindCommand:
     aliases: List[str] = field(default_factory=lambda: ['checkpoint'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /rewind command."""
-        return {"type": "text", "value": f"/rewind not yet implemented"}
+        """Handle /rewind command.
+
+        Rewind conversation to a previous state.
+        """
+        return {"type": "local-command", "name": "rewind", "args": args}
 
 
 default = RewindCommand()

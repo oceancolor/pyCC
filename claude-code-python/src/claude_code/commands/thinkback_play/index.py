@@ -20,8 +20,11 @@ class ThinkbackPlayCommand:
     is_hidden: bool = IS_HIDDEN
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /thinkback-play command."""
-        return {"type": "text", "value": f"/thinkback-play not yet implemented"}
+        """Handle /thinkback-play command.
+
+        Animate thinking replay.
+        """
+        return {"type": "local-command", "name": "thinkback-play", "args": args}
 
 
 default = ThinkbackPlayCommand()

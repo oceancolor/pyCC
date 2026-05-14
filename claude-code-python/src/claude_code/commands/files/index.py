@@ -18,8 +18,11 @@ class FilesCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /files command."""
-        return {"type": "text", "value": f"/files not yet implemented"}
+        """Handle /files command.
+
+        List files added to the current context.
+        """
+        return {"type": "local-command", "name": "files", "args": args}
 
 
 default = FilesCommand()

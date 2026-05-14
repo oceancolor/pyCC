@@ -20,8 +20,11 @@ class FeedbackCommand:
     aliases: List[str] = field(default_factory=lambda: ['bug'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /feedback command."""
-        return {"type": "text", "value": f"/feedback not yet implemented"}
+        """Handle /feedback command.
+
+        Submit feedback about Claude Code.
+        """
+        return {"type": "local-command", "name": "feedback", "args": args}
 
 
 default = FeedbackCommand()

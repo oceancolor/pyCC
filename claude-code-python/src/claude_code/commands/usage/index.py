@@ -20,8 +20,11 @@ class UsageCommand:
     availability: List[str] = field(default_factory=lambda: ['claude-ai'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /usage command."""
-        return {"type": "text", "value": f"/usage not yet implemented"}
+        """Handle /usage command.
+
+        Show token usage for the current session.
+        """
+        return {"type": "local-command", "name": "usage", "args": args}
 
 
 default = UsageCommand()

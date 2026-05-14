@@ -19,8 +19,11 @@ class IdeCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /ide command."""
-        return {"type": "text", "value": f"/ide not yet implemented"}
+        """Handle /ide command.
+
+        Open the current project in an IDE.
+        """
+        return {"type": "local-command", "name": "ide", "args": args}
 
 
 default = IdeCommand()

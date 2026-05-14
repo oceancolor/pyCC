@@ -22,8 +22,11 @@ class BridgeCommand:
     immediate: bool = True
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /remote-control command."""
-        return {"type": "text", "value": f"/remote-control not yet implemented"}
+        """Handle /remote-control command.
+
+        Bridge to external Claude Code session.
+        """
+        return {"type": "local-command", "name": "remote-control", "args": args}
 
 
 default = BridgeCommand()

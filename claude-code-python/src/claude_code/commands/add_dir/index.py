@@ -19,8 +19,11 @@ class AddDirCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /add-dir command."""
-        return {"type": "text", "value": f"/add-dir not yet implemented"}
+        """Handle /add-dir command.
+
+        Add a new working directory to the project context.
+        """
+        return {"type": "local-command", "name": "add-dir", "args": args}
 
 
 default = AddDirCommand()

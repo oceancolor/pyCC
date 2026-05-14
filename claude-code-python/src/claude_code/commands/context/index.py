@@ -18,8 +18,11 @@ class ContextCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /context command."""
-        return {"type": "text", "value": f"/context not yet implemented"}
+        """Handle /context command.
+
+        Show current context window information.
+        """
+        return {"type": "local-command", "name": "context", "args": args}
 
 
 default = ContextCommand()

@@ -18,8 +18,11 @@ class PassesCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /passes command."""
-        return {"type": "text", "value": f"/passes not yet implemented"}
+        """Handle /passes command.
+
+        Show multi-pass processing status.
+        """
+        return {"type": "local-command", "name": "passes", "args": args}
 
 
 default = PassesCommand()

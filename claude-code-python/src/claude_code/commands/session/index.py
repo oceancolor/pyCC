@@ -19,8 +19,11 @@ class SessionCommand:
     aliases: List[str] = field(default_factory=lambda: ['remote'])
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /session command."""
-        return {"type": "text", "value": f"/session not yet implemented"}
+        """Handle /session command.
+
+        Show or manage current session info.
+        """
+        return {"type": "local-command", "name": "session", "args": args}
 
 
 default = SessionCommand()

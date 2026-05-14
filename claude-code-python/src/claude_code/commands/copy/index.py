@@ -18,8 +18,11 @@ class CopyCommand:
     is_enabled: object = None
 
     async def call(self, args: str = "", context=None) -> dict:
-        """Handle /copy command."""
-        return {"type": "text", "value": f"/copy not yet implemented"}
+        """Handle /copy command.
+
+        Copy last Claude response to clipboard.
+        """
+        return {"type": "local-command", "name": "copy", "args": args}
 
 
 default = CopyCommand()
