@@ -1,56 +1,56 @@
-"""User-Agent string helpers. Ported from userAgent.ts.
+"""User-Agent string helpers. Ported from utils/userAgent.ts
 
 Kept dependency-free so SDK-bundled code (bridge, cli/transports) can
-import without pulling in auth.py and its transitive dependency tree.
+import without pulling in auth.ts and its transitive dependency tree.
 """
+
 from __future__ import annotations
 
+import os
 import platform
 import sys
 from typing import Optional
 
-__all__ = [
-    "get_claude_code_user_agent",
-    "get_full_user_agent",
-    "get_platform_info",
-]
-
-
-def _get_version() -> str:
-    """Return the installed claude-code package version."""
-    try:
-        from claude_code import __version__
-
-        return __version__
-    except Exception:
-        return "0.0.0"
+try:
+    from claude_code import __version__ as _VERSION
+except ImportError:
+    _VERSION = "0.0.0"
 
 
 def get_claude_code_user_agent() -> str:
-    """Return the base claude-code User-Agent string.
+    """Return the canonical ``User-Agent`` header value for Claude Code.
 
     Format: ``claude-code/<version>``
     """
-    return f"claude-code/{_get_version()}"
-
-
-def get_platform_info() -> str:
-    """Return a compact platform identifier suitable for User-Agent headers.
-
-    Format: ``python/<py_version> (<os> <arch>)``
-    """
-    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-    os_name = platform.system().lower()
-    machine = platform.machine().lower()
-    return f"python/{py_ver} ({os_name} {machine})"
+    return f"claude-code/{_VERSION}"
 
 
 def get_full_user_agent(extra: Optional[str] = None) -> str:
-    """Return a full User-Agent string including platform info.
+    """Return an extended User-Agent that includes runtime info.
 
-    Format: ``claude-code/<version> python/<py_version> (<os> <arch>) [extra]``
+    Format: ``claude-code/<version> Python/<py-version> <platform>``
+    Optionally appends *extra* (e.g. ``"webrtc"``).
     """
-    parts = [get_claude_code_user_agent(), get_platform_info()]
+    py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    plat = _platform_tag()
+    base = f"claude-code/{_VERSION} Python/{py_version} {plat}"
     if extra:
-        parts.append(extra.strip())
-    return " ".join(parts)
+        base += f" {extra}"
+    return base
+
+
+def _platform_tag() -> str:
+    """Return a short platform identifier string."""
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+    return f"{system}/{machine}"
+
+
+def get_environment_user_agent_suffix() -> str:
+    """Return an optional extra suffix sourced from an environment variable.
+
+    The environment variable ``CLAUDE_CODE_USER_AGENT_SUFFIX`` lets
+    integration environments (e.g. CI, IDE plugins) append their own
+    identifier without modifying core code.
+    """
+    return os.environ.get("CLAUDE_CODE_USER_AGENT_SUFFIX", "")
