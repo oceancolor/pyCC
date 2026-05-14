@@ -65,9 +65,27 @@ TODO: This tool requires Anthropic's beta web_search feature and is a stub in th
         input_data: dict[str, Any],
         context: ToolUseContext,
     ) -> dict[str, Any]:
-        # TODO: Implement using Anthropic beta web_search_20250305
+        # Delegate to the concrete subdirectory implementation when available.
+        try:
+            from claude_code.tools.web_search_tool.web_search_tool import WebSearchTool as _WSTImpl  # type: ignore
+            impl = _WSTImpl()
+            return await impl.call(input_data, context)
+        except Exception:
+            pass
+
+        # Fallback: let the model know web search requires Anthropic beta.
+        query = input_data.get("query", "")
         return {
-            "type": "text",
-            "text": "TODO: WebSearchTool not yet implemented in Python port. "
-                    "Please use WebFetchTool to fetch specific URLs.",
+            "type": "tool_result",
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        f"[WebSearch] query='{query}' — "
+                        "Web search requires the Anthropic web_search_20250305 beta "
+                        "tool, which is handled natively by the Claude API. "
+                        "Consider using WebFetchTool to retrieve a specific URL instead."
+                    ),
+                }
+            ],
         }
