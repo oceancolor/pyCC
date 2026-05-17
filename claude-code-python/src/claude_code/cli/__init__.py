@@ -1,10 +1,27 @@
 """
-CLI package
-原始 TS: src/cli/
+CLI package — headless / non-interactive output.
 
-Print/non-interactive output handling.
-React/Ink UI → TODO: port to prompt_toolkit or textual
+Original TypeScript: src/cli/
+
+The TypeScript source uses React/Ink for the interactive REPL UI and a
+separate headless path (cli/print.ts) for `-p`/`--print` mode.
+
+This Python package re-exports the headless print utilities and provides
+stub entry-points for the interactive REPL (which will be implemented with
+prompt_toolkit or textual in a later milestone).
 """
 from __future__ import annotations
 
-# TODO: Port Ink REPL components
+from .print import (
+    run_headless,
+    DynamicMcpState,
+    SdkMcpState,
+    McpSetServersResult,
+)
+
+__all__ = [
+    "run_headless",
+    "DynamicMcpState",
+    "SdkMcpState",
+    "McpSetServersResult",
+]
