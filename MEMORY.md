@@ -30,31 +30,27 @@
 - `setup.py`：会话初始化
 - FileReadTool/FileEditTool/FileWriteTool/GlobTool/GrepTool（完整实现）
 
-**当前状态（2026-05-14）：**
-- Python 文件总数 1,311 个，总行数 ~216,392 行
-- stub 文件（<20行）261 个（从 488 减少到 261，本轮消灭 227 个）
-- 完成率 **80.1%**（1050/1311 文件）
+**当前状态（2026-05-19）：**
+- Python 文件总数 1,312 个，总行数 ~221,740 行
+- stub 文件（index.py < 20行）**0 个** ✅ 全部消灭
+- commands `__init__.py` 4行导入包装 ~84个（设计如此，不是 stub）
+- 完成率 **~100%**（所有 index.py 均有实质内容）
 - 测试 48 passed ✅ 全程稳定
 
-**本轮新增（2026-05-14，6 subagent 并行）：**
-- SA4（commands+tasks）：~160文件，+3,017行，53个命令成功加载
-- SA2（tools）：83文件，+1,537行，web_fetch preapproved host list、mcp classify_for_collapse
-- SA3（services）：53文件，+3,699行，analytics/oauth/compact/team_memory_sync 完整实装
-- SA1b（utils单文件+__init__）：69文件，+3,437行，所有顶层utils单文件补全
-- SA5（tools constants+commands）：~130文件，agent_tool完整实装，commands call方法升级
-- 总计本轮新增约 17,800+ 行
+**本轮新增（2026-05-19，3 subagent 并行）：**
+- SA-A（commands a-m）：修复 clear/index.py（6→35行）、compact/index.py（10→52行），其余41个已就绪
+- SA-B（commands m-z）：42个全部已就绪，无需修改
+- SA-C（tools/services/utils）：93个文件全部处理，修复 BashTool 错误导入路径
 
-**最近 git commits（2026-05-14）：**
-- `c93f710` feat(utils): fill stub files batch 3
-- `6858ef2` feat: improve agent_tool/__init__.py (SA5 batch3)
-- `15854ea` feat(utils): fill stub files batch 2 + all submodule __init__.py
-- `428d722` feat: improve tool constants/init exports (SA5 batch2)
-- `f9d3fcf` feat: fill tool/command stubs (SA5 batch1)
+**最近 git commits（2026-05-19）：**
+- `c221b29` feat(tools/services/utils): fill stubs SA-C
+- `2d7e202` feat(commands): fill stubs SA-A (a-m commands)
+- `c90f74d` feat(commands): fill stubs SA-B (m-z commands)
 
 **仍待推进：**
-- stub 文件 261 个（持续减少中）
-- 端到端集成测试（当前仅单元测试）
+- 端到端集成测试（当前仅单元测试 48 passed）
 - `cli/print.py` 部分 React/Ink 渲染逻辑待细化
+- 可考虑运行完整导入测试（import all modules）验证无循环依赖
 
 ---
 
