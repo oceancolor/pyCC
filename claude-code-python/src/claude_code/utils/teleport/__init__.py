@@ -1,7 +1,18 @@
-"""Teleport utilities sub-package. Ported from utils/teleport/.
+"""Teleport utilities.
 
-Provides helpers for Claude's Teleport remote development environment
-integration including environment selection and git bundle creation.
+Provides helpers for integrating with Teleport remote development
+environments, including listing available environments, selecting one for
+a session, and creating git bundles for code transfer.
+
+Ported from: src/utils/teleport/ (TypeScript)
+
+Usage::
+
+    from claude_code.utils.teleport import (
+        EnvironmentResource,
+        EnvironmentListResponse,
+        is_transient_network_error,
+    )
 """
 from __future__ import annotations
 

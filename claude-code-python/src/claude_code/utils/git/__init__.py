@@ -1,6 +1,18 @@
-"""Git utilities sub-package. Ported from utils/git/.
+"""Git utilities.
 
-Provides git config parsing, filesystem traversal, and gitignore helpers.
+Provides git config parsing, filesystem traversal helpers, and
+``gitignore`` management utilities used across the codebase.
+
+Ported from: src/utils/git/ (TypeScript)
+
+Usage::
+
+    from claude_code.utils.git import (
+        parse_config_string,
+        resolve_git_dir,
+        is_path_gitignored,
+        add_to_gitignore,
+    )
 """
 from __future__ import annotations
 

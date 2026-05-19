@@ -1,7 +1,13 @@
-"""Telemetry utilities sub-package. Ported from utils/telemetry/.
+"""Telemetry utilities.
 
-Provides OpenTelemetry tracing, BigQuery export, and session telemetry
-helpers used across the Claude Code codebase.
+Provides OpenTelemetry tracing, BigQuery event export, and session-level
+telemetry helpers used to record usage metrics and performance data.
+
+Ported from: src/utils/telemetry/ (TypeScript)
+
+Usage::
+
+    from claude_code.utils.telemetry import TelemetryEvent, log_telemetry_event
 """
 from __future__ import annotations
 

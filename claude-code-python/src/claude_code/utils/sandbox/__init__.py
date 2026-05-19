@@ -1,7 +1,14 @@
-"""Sandbox utilities sub-package. Ported from utils/sandbox/.
+"""Sandbox utilities.
 
-Provides sandbox adapter and configuration helpers for running code in
-isolated environments.
+Provides the sandbox adapter and configuration helpers used to run code
+in isolated environments (Docker, macOS sandbox-exec, etc.) when the
+user enables sandbox mode.
+
+Ported from: src/utils/sandbox/ (TypeScript)
+
+Usage::
+
+    from claude_code.utils.sandbox import SandboxConfig, SandboxManager, SandboxResult
 """
 from __future__ import annotations
 

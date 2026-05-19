@@ -1,14 +1,21 @@
-"""
-State management package.
-Ported from: src/state/ (TypeScript)
+"""State management package.
 
 Provides the core application and session state types used throughout
-the Claude Code codebase.
+Claude Code.
 
-  - SessionState  — per-session runtime state (messages, tokens, etc.)
+Ported from: src/state/ (TypeScript)
 
-The full AppState (tasks, MCP clients, tools, etc.) is defined in
-``claude_code.state.app_state`` and loaded lazily to keep import time small.
+Sub-modules
+-----------
+session_state
+    Per-session runtime state (messages, token counts, active tools, etc.).
+app_state
+    Full application state including tasks, MCP clients, and global config.
+    Loaded lazily to keep import time small.
+
+Usage::
+
+    from claude_code.state import SessionState
 """
 from __future__ import annotations
 

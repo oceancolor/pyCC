@@ -1,6 +1,14 @@
-"""GitHub utilities sub-package. Ported from utils/github/.
+"""GitHub utilities.
 
-Provides helpers for interacting with the gh CLI and GitHub APIs.
+Provides helpers for interacting with the ``gh`` CLI and the GitHub REST
+API, including authentication status checks and repository metadata
+lookups.
+
+Ported from: src/utils/github/ (TypeScript)
+
+Usage::
+
+    from claude_code.utils.github import GhAuthStatus, get_gh_auth_status
 """
 from __future__ import annotations
 

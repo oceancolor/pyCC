@@ -1,7 +1,13 @@
-"""Task utilities sub-package. Ported from utils/task/.
+"""Task utilities.
 
-Provides task state management, output formatting, and progress tracking
-helpers for the Task (agent) tool.
+Provides task state management, output formatting, and progress-tracking
+helpers used by the Task (Agent) tool and the background-task subsystem.
+
+Ported from: src/utils/task/ (TypeScript)
+
+Usage::
+
+    from claude_code.utils.task import TaskAttachment, TaskOutput, register_task
 """
 from __future__ import annotations
 
