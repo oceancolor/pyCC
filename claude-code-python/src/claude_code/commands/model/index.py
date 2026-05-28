@@ -28,3 +28,4 @@ class ModelCommand(Command):
         return {"type": "text", "value": f"Model set to: {arg}"}
 
 model_cmd = ModelCommand()
+default = model_cmd

@@ -406,12 +406,37 @@ class TestCommands:
         assert hasattr(clear, "call")
 
     @pytest.mark.asyncio
-    async def test_get_commands_signature(self):
-        """get_commands(cwd) 接口契约验证"""
+    async def test_get_commands_returns_list(self):
+        """get_commands(cwd) 实际返回列表，不崩溃"""
         from claude_code.commands import get_commands
-        import inspect
-        sig = inspect.signature(get_commands)
-        assert "cwd" in sig.parameters, "get_commands should accept cwd parameter"
+        cmds = await get_commands("/tmp")
+        assert isinstance(cmds, list), "get_commands should return a list"
+        assert len(cmds) >= 10, f"Expected ≥10 commands, got {len(cmds)}"
+
+    @pytest.mark.asyncio
+    async def test_core_commands_present(self):
+        from claude_code.commands import get_commands
+        cmds = await get_commands("/tmp")
+        names = {getattr(c, "name", "") for c in cmds}
+        for expected in ["clear", "compact", "help", "exit", "model", "memory", "status"]:
+            assert expected in names, f"Expected command '{expected}' to be registered"
+
+    @pytest.mark.asyncio
+    async def test_all_commands_have_name(self):
+        from claude_code.commands import get_commands
+        cmds = await get_commands("/tmp")
+        for cmd in cmds:
+            name = getattr(cmd, "name", None)
+            assert name, f"Command {cmd!r} should have a non-empty name"
+
+    @pytest.mark.asyncio
+    async def test_is_command_enabled_safe_on_all_cmds(self):
+        """is_command_enabled should not raise on any registered command."""
+        from claude_code.commands import get_commands, is_command_enabled
+        cmds = await get_commands("/tmp")
+        for cmd in cmds:
+            result = is_command_enabled(cmd)  # must not raise
+            assert isinstance(result, bool)
 
     def test_clear_command_descriptor(self):
         from claude_code.commands.clear.index import ClearCommand
@@ -425,6 +450,50 @@ class TestCommands:
         from claude_code.commands.clear.index import ClearCommand
         cmd = ClearCommand()
         assert inspect.iscoroutinefunction(cmd.call), "Command.call should be async"
+
+    def test_is_command_enabled_no_attr(self):
+        """Objects without is_enabled attr should be treated as enabled."""
+        from claude_code.types.command import is_command_enabled
+
+        class BareCmd:
+            name = "bare"
+
+        assert is_command_enabled(BareCmd()) is True
+
+    def test_is_command_enabled_none_field(self):
+        from claude_code.types.command import is_command_enabled
+
+        class CmdNone:
+            name = "none"
+            is_enabled = None
+
+        assert is_command_enabled(CmdNone()) is True
+
+    def test_is_command_enabled_callable_false(self):
+        from claude_code.types.command import is_command_enabled
+
+        class CmdOff:
+            name = "off"
+            is_enabled = lambda self: False
+
+        assert is_command_enabled(CmdOff()) is False
+
+    def test_get_command_name_fallback(self):
+        from claude_code.types.command import get_command_name
+
+        class CmdFallback:
+            name = "fallback-name"
+
+        assert get_command_name(CmdFallback()) == "fallback-name"
+
+    def test_get_command_name_user_facing(self):
+        from claude_code.types.command import get_command_name
+
+        class CmdFacing:
+            name = "internal"
+            user_facing_name = lambda self: "display-name"
+
+        assert get_command_name(CmdFacing()) == "display-name"
 
 
 # ══════════════════════════════════════════════════════════════════

@@ -201,15 +201,26 @@ Command = Any   # TODO: 使用 typing.Union[...] 配合 TypedDict 或协议改�
 # Helper functions
 # ---------------------------------------------------------------------------
 
-def get_command_name(cmd: CommandBase) -> str:
-    """Resolves the user-visible name, falling back to cmd.name."""
-    if cmd.user_facing_name is not None:
-        return cmd.user_facing_name()
-    return cmd.name
+def get_command_name(cmd: Any) -> str:
+    """Resolves the user-visible name, falling back to cmd.name.
+
+    Uses getattr so that command objects that do not inherit from CommandBase
+    are handled gracefully.
+    """
+    user_facing_name = getattr(cmd, "user_facing_name", None)
+    if user_facing_name is not None:
+        return user_facing_name()
+    return getattr(cmd, "name", "")
 
 
-def is_command_enabled(cmd: CommandBase) -> bool:
-    """Resolves whether the command is enabled, defaulting to True."""
-    if cmd.is_enabled is not None:
-        return cmd.is_enabled()
+def is_command_enabled(cmd: Any) -> bool:
+    """Resolves whether the command is enabled, defaulting to True.
+
+    Uses getattr with a default of None so that command objects that do not
+    inherit from CommandBase (and therefore lack an is_enabled attribute) are
+    treated as enabled, matching the original TypeScript behaviour.
+    """
+    is_enabled = getattr(cmd, "is_enabled", None)
+    if is_enabled is not None:
+        return is_enabled()
     return True

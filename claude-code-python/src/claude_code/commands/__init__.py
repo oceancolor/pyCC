@@ -39,7 +39,10 @@ except ImportError:
         return getattr(cmd, "name", "")
 
     def is_command_enabled(cmd: Any) -> bool:  # type: ignore
-        return getattr(cmd, "enabled", True)
+        is_enabled = getattr(cmd, "is_enabled", None)
+        if is_enabled is not None:
+            return is_enabled()
+        return True
 
 
 # ---------------------------------------------------------------------------
