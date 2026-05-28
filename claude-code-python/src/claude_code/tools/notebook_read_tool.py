@@ -9,63 +9,88 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..tool import Tool as ToolBase, ToolUseContext
+from ..tool import Tool as ToolBase, ToolInputJSONSchema, ToolUseContext
+
 ToolResult = dict  # compat alias
+
+_DESCRIPTION = (
+    "Read a Jupyter Notebook (.ipynb) file. Returns all cells with their "
+    "type (code/markdown), source content, and outputs."
+)
+
+_PROMPT = """\
+Read a Jupyter Notebook (.ipynb) file and return its cells.
+
+Usage:
+- The notebook_path parameter must be an absolute path to an .ipynb file.
+- Returns all cells with their type (code/markdown), source, and any outputs.
+- Outputs include stream text, execution results, display data, and errors.
+- Use this tool instead of Read when you need to understand notebook structure \
+or inspect cell outputs."""
+
+_INPUT_SCHEMA: ToolInputJSONSchema = {
+    "type": "object",
+    "properties": {
+        "notebook_path": {
+            "type": "string",
+            "description": "The absolute path to the .ipynb notebook file.",
+        }
+    },
+    "required": ["notebook_path"],
+}
 
 
 class NotebookReadTool(ToolBase):
     """Read a Jupyter Notebook file and return its cells."""
 
-    name: str = "NotebookRead"
-    description: str = (
-        "Read a Jupyter Notebook (.ipynb) file. Returns all cells with their "
-        "type (code/markdown), source content, and outputs. Useful for "
-        "understanding the structure and content of notebook files."
-    )
+    name = "NotebookRead"
+    search_hint = "read jupyter notebook ipynb"
+    is_read_only = True
 
-    @property
-    def input_schema(self) -> dict[str, Any]:
-        return {
-            "type": "object",
-            "properties": {
-                "notebook_path": {
-                    "type": "string",
-                    "description": "The absolute path to the .ipynb notebook file.",
-                }
-            },
-            "required": ["notebook_path"],
-        }
+    # ── Abstract method implementations ──────────────────────────────────
 
-    def run(self, notebook_path: str, **kwargs: Any) -> ToolResult:
-        """Read and format a Jupyter notebook."""
+    async def description(self) -> str:
+        return _DESCRIPTION
+
+    async def prompt(self) -> str:
+        return _PROMPT
+
+    def input_schema(self) -> ToolInputJSONSchema:
+        return _INPUT_SCHEMA
+
+    async def call(
+        self,
+        input_data: dict[str, Any],
+        context: ToolUseContext,
+    ) -> dict[str, Any]:
+        notebook_path: str = input_data["notebook_path"]
         path = Path(notebook_path)
 
         if not path.exists():
-            return ToolResult(
-                content=[{"type": "text", "text": f"Error: File not found: {notebook_path}"}],
-                is_error=True,
-            )
+            return {
+                "type": "text",
+                "text": f"Error: File not found: {notebook_path}",
+                "is_error": True,
+            }
 
         if path.suffix != ".ipynb":
-            return ToolResult(
-                content=[{"type": "text", "text": f"Error: Not a notebook file: {notebook_path}"}],
-                is_error=True,
-            )
+            return {
+                "type": "text",
+                "text": f"Error: Not a notebook file: {notebook_path}",
+                "is_error": True,
+            }
 
         try:
             with open(path, "r", encoding="utf-8") as f:
                 nb = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
-            return ToolResult(
-                content=[{"type": "text", "text": f"Error reading notebook: {e}"}],
-                is_error=True,
-            )
+            return {"type": "text", "text": f"Error reading notebook: {e}", "is_error": True}
 
         cells = nb.get("cells", [])
         formatted = self._format_cells(cells)
-        return ToolResult(
-            content=[{"type": "text", "text": formatted}]
-        )
+        return {"type": "text", "text": formatted}
+
+    # ── Helpers ───────────────────────────────────────────────────────────
 
     def _format_cells(self, cells: list[dict[str, Any]]) -> str:
         parts: list[str] = []
