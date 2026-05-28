@@ -191,11 +191,40 @@ class QueryEngine:
         }
 
         # ── Build query params ────────────────────────────────────────────────
+        # Pre-serialize tools: resolve async description() before entering query()
+        serialized_tools: List[Any] = []
+        for t in cfg.tools:
+            if isinstance(t, dict):
+                serialized_tools.append(t)
+                continue
+            schema_fn = getattr(t, "input_schema", None)
+            schema = schema_fn() if callable(schema_fn) else {"type": "object", "properties": {}}
+            desc_attr = getattr(t, "description", "")
+            import inspect as _inspect
+            if _inspect.iscoroutinefunction(desc_attr):
+                try:
+                    desc = await desc_attr()
+                except Exception:
+                    desc = getattr(t, "name", "tool")
+            elif callable(desc_attr):
+                try:
+                    desc = desc_attr()
+                except Exception:
+                    desc = getattr(t, "name", "tool")
+            else:
+                desc = str(desc_attr) if desc_attr else ""
+            serialized_tools.append({
+                "name": getattr(t, "name", "unknown"),
+                "description": desc,
+                "input_schema": schema,
+                "_tool_obj": t,   # keep original for actual call dispatch
+            })
+
         params: QueryParams = {
             "model": options.get("model_override") or cfg.model,
             "max_tokens": options.get("max_tokens_override") or cfg.max_tokens,
             "system_prompt": cfg.system_prompt,
-            "tools": cfg.tools,
+            "tools": serialized_tools,
             "source": "query_engine",
             "is_non_interactive": cfg.is_non_interactive,
             "thinking_config": cfg.thinking_config,

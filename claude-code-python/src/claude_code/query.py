@@ -502,8 +502,17 @@ async def _execute_tool(
 ) -> Any:
     """Find and execute a tool by name."""
     for t in tools_list:
-        if getattr(t, "name", None) == tool_name:
-            call_fn = getattr(t, "call", None)
+        # Support both raw Tool objects and pre-serialized dicts (with _tool_obj)
+        if isinstance(t, dict):
+            t_name = t.get("name", "")
+            tool_obj = t.get("_tool_obj")  # set by QueryEngine pre-serialization
+        else:
+            t_name = getattr(t, "name", "")
+            tool_obj = t
+
+        if t_name == tool_name or t_name.lower() == tool_name.lower():
+            target = tool_obj if tool_obj is not None else t
+            call_fn = getattr(target, "call", None)
             if callable(call_fn):
                 result = call_fn(tool_input, context)
                 if asyncio.iscoroutine(result):
@@ -525,9 +534,31 @@ def _serialize_tools(tools: List[Any]) -> List[dict]:
             continue
         schema_fn = getattr(t, "input_schema", None)
         schema = schema_fn() if callable(schema_fn) else {"type": "object", "properties": {}}
+        # description can be: a string attribute, a sync callable, or an async method
+        desc_attr = getattr(t, "description", "")
+        if callable(desc_attr):
+            # async method — call synchronously via a thread-safe fallback
+            import asyncio, inspect
+            if inspect.iscoroutinefunction(desc_attr):
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # We're inside an async context; use the name as fallback
+                        desc = getattr(t, "name", "tool")
+                    else:
+                        desc = loop.run_until_complete(desc_attr())
+                except Exception:
+                    desc = getattr(t, "name", "tool")
+            else:
+                try:
+                    desc = desc_attr()
+                except Exception:
+                    desc = getattr(t, "name", "tool")
+        else:
+            desc = str(desc_attr) if desc_attr else ""
         result.append({
             "name": getattr(t, "name", "unknown"),
-            "description": getattr(t, "description", ""),
+            "description": desc,
             "input_schema": schema,
         })
     return result
