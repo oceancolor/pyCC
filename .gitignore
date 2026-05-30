@@ -1,0 +1,38 @@
+# Large / binary files - never track
+*.zip
+*.7z
+*.tar.gz
+*.tar.bz2
+*.rar
+*.gz
+
+# Specific directories with large/sensitive data
+claude-code-leak/
+output/*.zip
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+
+# Secrets / local config
+.env
+.env.local
+*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Memory / runtime state
+memory/.dreams/
