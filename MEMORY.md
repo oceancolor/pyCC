@@ -47,35 +47,43 @@
 - `2d7e202` feat(commands): fill stubs SA-A (a-m commands)
 - `c90f74d` feat(commands): fill stubs SA-B (m-z commands)
 
-**仍待推进：**
-- 端到端集成测试（当前仅单元测试 48 passed）
-- `cli/print.py` 部分 React/Ink 渲染逻辑待细化
-- 可考虑运行完整导入测试（import all modules）验证无循环依赖
+**2026-05-28 最新进展（完整）：**
+- 端到端集成测试：**180 passed** ✅（test_integration.py 50 + test_new_tools.py 82 + 原 48）
+- 7 个工具从抽象类补全：FileMoveTool / NotebookReadTool / TaskCreate/Get/List/Stop/UpdateTool
+- `is_command_enabled()` bug 修复（getattr 防御式）；`get_commands()` 返回 57 个命令
+- **混元 Python 接入完成，tool_use 循环实测跑通** ✅
+- git tail: `352e26c` → `8fbd52a` → `7d98f18` → `5dc36f0`
 
----
+**工具接口（已确认）：**
+- Tool 基类需实现：`async description()`, `async prompt()`, `def input_schema()`, `async call(input_data, context)`
+- GrepTool 例外：kwargs 展开（历史遗留）
+- `get_commands(cwd)` 是 async，返回 57 个命令
 
-## Claude Code 接入混元模型（进行中）
+**混元 Python 接入（claude-code-python，2026-05-28 完成）：**
+- `services/api/client.py`：新增 `_HunyuanClient` OpenAI-compat wrapper
+  - `client.messages.create(**anthropic_kwargs)` → `/v1/chat/completions`
+  - Anthropic↔OpenAI 消息/工具格式双向转换
+  - Priority: HUNYUAN_API_KEY > Bedrock > Vertex > firstParty
+- `query.py`：修复 _serialize_tools（async description 方法不可 JSON 序列化）
+- `query.py`：修复 _dispatch_tool（大小写不敏感 + dict/_tool_obj 支持）
+- `query_engine.py`：_run_turn 中预先 await 所有 tool async 方法
+- **实测（hunyuan-turbos-latest）**：tool_use 循环完整（模型→BashTool→stdout→回答）
 
-**状态（2026-04-22）：** Windows 本地编译已成功，正在接入混元大模型
-
-**已完成的改动（服务器端，claude-code-analysis/claude-code-source/）：**
-- `services/api/hunyuan.ts`（558行）— 核心适配层，Anthropic SDK → 混元 OpenAI 兼容格式
-  - `convertMessages()`、`convertTools()`、`openAIStreamToAnthropicEvents()`
-  - 导出 `createHunyuanClient()`、`isHunyuanEnabled()`
-- `utils/model/providers.ts` — `APIProvider` 加入 `'hunyuan'`，环境变量优先判断
-- `services/api/client.ts` — `getAnthropicClient()` 加混元分支
-- `utils/auth.ts` — `HUNYUAN_API_KEY` 设置时跳过 Anthropic 登录校验
-- `utils/model/model.ts` — 混元模式下返回混元模型名
+**混元可用模型（2026-05-28 确认）：**
+- 快速：`hunyuan-turbos-latest`
+- 推理：`hunyuan-t1-latest`
+- ❌ `hy3-preview`、`hunyuan-think` 均不存在
 
 **混元环境变量：**
 ```
-HUNYUAN_API_KEY=xxx          # 必填，启用混元模式
-HUNYUAN_MODEL=hunyuan-turbos-latest
-HUNYUAN_SMALL_MODEL=hunyuan-lite
+HUNYUAN_API_KEY=xxx
+HUNYUAN_MODEL=hunyuan-turbos-latest  # 或 hunyuan-t1-latest
 HUNYUAN_BASE_URL=https://api.hunyuan.cloud.tencent.com/v1  # 可选
 ```
 
-**Windows 编译情况：** bun 编译成功，本地可运行，当前继续推进混元接入
+**仍待推进：**
+- `cli/print.py` React/Ink 渲染逻辑细化
+- 导入完整性测试（import all modules，验证无循环依赖）
 
 ---
 

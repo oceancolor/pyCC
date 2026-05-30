@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "claude-code"
@@ -37,8 +37,11 @@ dev = [
 [project.scripts]
 claude = "claude_code.main:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/claude_code"]
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
 
 [tool.ruff]
 src = ["src"]
