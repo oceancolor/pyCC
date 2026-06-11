@@ -8,10 +8,16 @@ from __future__ import annotations
 
 import json
 import platform
-import resource
 import sys
 import time
 import tracemalloc
+
+# `resource` is a Unix-only stdlib module; not available on Windows.
+try:
+    import resource as _resource  # noqa: F401 (used via name below)
+    _HAS_RESOURCE = True
+except ImportError:
+    _HAS_RESOURCE = False
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -63,11 +69,52 @@ def _ensure_tracemalloc() -> None:
 
 
 def _get_rss_bytes() -> int:
+    """Return process RSS in bytes; uses `resource` on Unix, ctypes on Windows."""
+    if _HAS_RESOURCE:
+        try:
+            import resource  # noqa: PLC0415
+            usage = resource.getrusage(resource.RUSAGE_SELF)  # type: ignore[attr-defined]
+            # Linux: ru_maxrss is kB; macOS/BSDs: bytes
+            return usage.ru_maxrss * 1024 if sys.platform == "linux" else usage.ru_maxrss
+        except Exception:
+            return 0
+
+    # Windows fallback via psutil (if installed) or ctypes PROCESS_MEMORY_COUNTERS
     try:
-        usage = resource.getrusage(resource.RUSAGE_SELF)
-        return usage.ru_maxrss * 1024 if sys.platform == "linux" else usage.ru_maxrss
+        import psutil  # type: ignore[import-untyped]
+        return psutil.Process().memory_info().rss
+    except ImportError:
+        pass
+
+    try:
+        import ctypes
+        import ctypes.wintypes
+
+        class _PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+            _fields_ = [
+                ("cb", ctypes.wintypes.DWORD),
+                ("PageFaultCount", ctypes.wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t),
+                ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t),
+                ("PeakPagefileUsage", ctypes.c_size_t),
+            ]
+
+        psapi = ctypes.WinDLL("psapi")  # type: ignore[attr-defined]
+        kernel32 = ctypes.WinDLL("kernel32")  # type: ignore[attr-defined]
+        handle = kernel32.GetCurrentProcess()
+        pmc = _PROCESS_MEMORY_COUNTERS()
+        pmc.cb = ctypes.sizeof(pmc)
+        if psapi.GetProcessMemoryInfo(handle, ctypes.byref(pmc), pmc.cb):
+            return pmc.WorkingSetSize
     except Exception:
-        return 0
+        pass
+
+    return 0
 
 
 def _capture_diagnostics(

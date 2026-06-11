@@ -10,6 +10,7 @@ import asyncio
 import os
 import shlex
 import signal
+import sys
 from typing import Optional
 
 from claude_code.utils.shell_command import ExecResult
@@ -21,6 +22,10 @@ async def find_suitable_shell() -> str:
     """
     Determines the best available shell to use.
     原始 TS: findSuitableShell
+
+    On Windows, falls back to ``cmd.exe`` (or PowerShell if
+    ``CLAUDE_CODE_SHELL`` points there), because the Unix paths
+    (``/bin/bash`` etc.) do not exist.
     """
     # Check for explicit shell override first
     shell_override = os.environ.get("CLAUDE_CODE_SHELL")
@@ -28,7 +33,22 @@ async def find_suitable_shell() -> str:
         if os.path.isfile(shell_override) and os.access(shell_override, os.X_OK):
             return shell_override
 
-    # Try common shells in order
+    # Windows: probe Git-bash, WSL bash, then fall back to cmd.exe
+    if sys.platform == "win32":
+        import shutil
+        # Git for Windows ships bash.exe on PATH
+        git_bash = shutil.which("bash")
+        if git_bash:
+            return git_bash
+        # Common Git Bash installation path
+        git_bash_default = r"C:\Program Files\Git\bin\bash.exe"
+        if os.path.isfile(git_bash_default):
+            return git_bash_default
+        # Fall back to cmd.exe — always present on Windows
+        cmd = shutil.which("cmd") or r"C:\Windows\System32\cmd.exe"
+        return cmd
+
+    # Unix: Try common shells in order
     for shell in ["/bin/bash", "/usr/bin/bash", "/bin/zsh", "/usr/bin/zsh", "/bin/sh"]:
         if os.path.isfile(shell) and os.access(shell, os.X_OK):
             return shell
@@ -48,22 +68,65 @@ async def exec_command(
     """
     Execute a shell command and return the result.
     原始 TS: exec() in Shell.ts
+
+    Windows note: when the resolved shell is ``cmd.exe``, the command-flag
+    is ``/c`` instead of the POSIX ``-c``.
     """
     shell_path = shell or await find_suitable_shell()
     timeout_s = timeout_ms / 1000.0
 
     exec_env = {**os.environ, **(env or {})}
 
+    # cmd.exe uses /c, everything else (bash, sh, zsh, pwsh) uses -c
+    shell_flag = "/c" if os.path.basename(shell_path).lower() in ("cmd.exe", "cmd") else "-c"
+
     try:
         proc = await asyncio.create_subprocess_exec(
             shell_path,
-            "-c",
+            shell_flag,
             command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             stdin=asyncio.subprocess.PIPE if stdin_data else None,
             cwd=cwd,
             env=exec_env,
+        )
+
+        stdin_bytes = stdin_data.encode() if stdin_data else None
+
+        try:
+            stdout_b, stderr_b = await asyncio.wait_for(
+                proc.communicate(input=stdin_bytes),
+                timeout=timeout_s,
+            )
+            return ExecResult(
+                stdout=stdout_b.decode(errors="replace"),
+                stderr=stderr_b.decode(errors="replace"),
+                code=proc.returncode or 0,
+                interrupted=False,
+            )
+        except asyncio.TimeoutError:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            try:
+                stdout_b, stderr_b = await proc.communicate()
+            except Exception:
+                stdout_b, stderr_b = b"", b""
+            return ExecResult(
+                stdout=stdout_b.decode(errors="replace"),
+                stderr=stderr_b.decode(errors="replace"),
+                code=proc.returncode or -1,
+                interrupted=True,
+            )
+    except FileNotFoundError as e:
+        return ExecResult(
+            stdout="",
+            stderr=str(e),
+            code=127,
+            interrupted=False,
+            pre_spawn_error=str(e),
         )
 
         stdin_bytes = stdin_data.encode() if stdin_data else None
